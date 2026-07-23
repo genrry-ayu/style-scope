@@ -250,6 +250,9 @@
     }
   }
   function isActive() { return settings.enabled; }
+  function isCommandCapsLock(event) {
+    return event.metaKey && (event.key === "CapsLock" || event.code === "CapsLock" || event.getModifierState?.("CapsLock"));
+  }
   function inspect(element) {
     if (!isActive() || !element || element.id === ROOT_ID || element.closest?.(`#${ROOT_ID}`)) return;
     inspected = element;
@@ -400,7 +403,7 @@
   document.addEventListener("mousemove", onMove, true);
   document.addEventListener("click", onClick, true);
   document.addEventListener("keydown", (event) => {
-    if (event.key === "CapsLock" && event.metaKey && !event.repeat) {
+    if (isCommandCapsLock(event) && !event.repeat) {
       event.preventDefault();
       event.stopPropagation();
       const enabled = !settings.enabled;

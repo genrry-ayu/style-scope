@@ -30,12 +30,19 @@
     </main>
     <script>
       // 演示页用极小的扩展 API 桩启用真实的内容脚本；正式使用时由浏览器扩展提供这些 API。
+      const demoSettings = { enabled: true };
       window.chrome = {
         runtime: { onMessage: { addListener() {} } },
-        storage: { local: { get(defaults, callback) { callback({ ...defaults, enabled: true }); } } }
+        storage: {
+          local: {
+            get(defaults, callback) { callback({ ...defaults, ...demoSettings }); },
+            set(patch, callback) { Object.assign(demoSettings, patch); callback?.(); }
+          },
+          onChanged: { addListener() {} }
+        }
       };
     </script>
-    <script src="content.js?v=1.2.0"></script>
+    <script src="content.js?v=1.2.1"></script>
     <script>
       // 仅供截图演示：距离或包含关系的测量，普通演示页不会执行。
       const previewParams = new URLSearchParams(location.search);
