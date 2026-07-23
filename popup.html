@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Style Scope</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <main class="scope-shell">
+      <header class="masthead">
+        <div class="brand-lockup" aria-label="Style Scope">
+          <span class="scope-mark" aria-hidden="true"><i></i><b></b></span>
+          <div>
+            <p class="eyebrow">Web element observatory</p>
+            <h1>STYLE <em>SCOPE</em></h1>
+          </div>
+        </div>
+        <span class="version">v1.2.0</span>
+      </header>
+
+      <section class="control-plate" aria-labelledby="control-heading">
+        <div class="control-copy">
+          <p class="eyebrow" id="control-heading">Inspection status</p>
+          <div class="state-line"><span class="status-orb" aria-hidden="true"></span><strong id="stateText">已静默</strong></div>
+          <p id="stateHint">悬停预览，点击即可锁定元素</p>
+        </div>
+        <button id="masterToggle" class="master-toggle" type="button" role="switch" aria-checked="false" aria-label="开启样式检视">
+          <span class="toggle-track"><span class="toggle-knob"></span></span>
+        </button>
+      </section>
+
+      <section class="readout" aria-label="检视能力">
+        <div class="readout-heading"><span class="eyebrow">Live readout</span><span class="signal"><i></i> HOVER + CLICK TO LOCK</span></div>
+        <div class="sample-element"><span class="sample-target">button.primary</span><span class="sample-dimension">142 × 44</span></div>
+        <div class="sample-grid">
+          <div><span>TYPE</span><b>16px / 600</b></div>
+          <div><span>COLOUR</span><b class="colour-value"><i></i>#F2B84B α100%</b></div>
+          <div><span>INSET</span><b>10px · 14px</b></div>
+          <div><span>SHADOW</span><b>0 8 24 / 18%</b></div>
+        </div>
+      </section>
+
+      <section class="settings" aria-label="检视设置">
+        <div class="setting-row">
+          <div><b>跟随光标</b><span>在元素附近显示信息面板</span></div>
+          <button id="panelMode" class="mini-switch is-on" type="button" role="switch" aria-checked="true" aria-label="切换面板位置"><i></i></button>
+        </div>
+        <div class="setting-row">
+          <div><b>显示继承来源</b><span>标记从父元素继承的文字样式</span></div>
+          <button id="inheritedMode" class="mini-switch" type="button" role="switch" aria-checked="false" aria-label="切换继承样式显示"><i></i></button>
+        </div>
+      </section>
+
+      <footer><span><kbd>CLICK</kbd> 锁定元素</span><span>⌘ <b>C</b> 复制样式</span></footer>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>

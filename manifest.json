@@ -1,0 +1,32 @@
+{
+  "manifest_version": 3,
+  "name": "Style Scope · 元素样式检视器",
+  "version": "1.2.0",
+  "description": "悬停网页元素，即时查看排版、颜色、边框、阴影、布局与盒模型样式。",
+  "permissions": ["storage", "activeTab", "scripting"],
+  "host_permissions": ["<all_urls>"],
+  "action": {
+    "default_title": "Style Scope",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [{
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_start",
+      "all_frames": true,
+      "match_origin_as_fallback": true
+  }]
+}
