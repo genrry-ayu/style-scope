@@ -328,14 +328,50 @@
     const markup = new XMLSerializer().serializeToString(clone);
     return new Blob([markup], { type: "image/svg+xml" });
   }
-  async function fetchImage(source) {
+  function base64Bytes(base64) {
+    const binary = atob(base64);
+    const bytes = new Uint8Array(binary.length);
+    for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
+    return bytes;
+  }
+  function mimeFromSource(source) {
+    const extension = new URL(source, document.baseURI).pathname.split(".").pop()?.toLowerCase();
+    return { svg: "image/svg+xml", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp", avif: "image/avif" }[extension] || "";
+  }
+  function mimeFromBytes(bytes) {
+    if (bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47) return "image/png";
+    if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "image/jpeg";
+    if (String.fromCharCode(...bytes.subarray(0, 6)).startsWith("GIF8")) return "image/gif";
+    if (String.fromCharCode(...bytes.subarray(0, 12)).startsWith("RIFF") && String.fromCharCode(...bytes.subarray(8, 12)) === "WEBP") return "image/webp";
+    if (String.fromCharCode(...bytes.subarray(4, 12)).includes("ftypavif")) return "image/avif";
+    const prefix = new TextDecoder().decode(bytes.subarray(0, 256)).trimStart();
+    if (/^(?:<\?xml[^>]*>\s*)?<svg[\s>]/i.test(prefix)) return "image/svg+xml";
+    return "";
+  }
+  async function fetchImageDirect(source) {
     const response = await fetch(source, { credentials: "include" });
     if (!response.ok) throw copyError("network", `资源请求失败（${response.status}）`);
     const blob = await response.blob();
-    if (blob.type.startsWith("image/")) return blob;
-    const extension = new URL(source, document.baseURI).pathname.split(".").pop()?.toLowerCase();
-    const mime = { svg: "image/svg+xml", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp", avif: "image/avif" }[extension];
-    return mime ? new Blob([blob], { type: mime }) : blob;
+    const bytes = new Uint8Array(await blob.arrayBuffer());
+    const responseMime = blob.type.split(";")[0].toLowerCase();
+    const mime = responseMime.startsWith("image/") ? responseMime : mimeFromSource(source) || mimeFromBytes(bytes);
+    return mime ? new Blob([bytes], { type: mime }) : blob;
+  }
+  async function fetchImage(source) {
+    const absoluteSource = new URL(source, document.baseURI).href;
+    if (!/^https?:/i.test(absoluteSource) || !chrome.runtime?.sendMessage) return fetchImageDirect(absoluteSource);
+    let response;
+    try {
+      response = await chrome.runtime.sendMessage({ type: "style-scope:fetch-image", url: absoluteSource });
+    } catch (error) {
+      throw copyError("network", error?.message || "扩展后台无法读取图片资源");
+    }
+    if (!response?.ok || !response.base64) throw copyError("network", response?.error || "扩展后台无法读取图片资源");
+    const bytes = base64Bytes(response.base64);
+    const responseMime = String(response.mime || "").toLowerCase();
+    const mime = responseMime.startsWith("image/") ? responseMime : mimeFromSource(absoluteSource) || mimeFromBytes(bytes);
+    if (!mime.startsWith("image/")) throw copyError("format", "无法确认资源的原始图片格式");
+    return new Blob([bytes], { type: mime });
   }
   function canvasBlob(canvas) {
     return new Promise((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(copyError("render", "画布无法导出 PNG")), "image/png"));
@@ -347,16 +383,6 @@
       reader.onerror = () => reject(copyError("format", "资源无法生成粘贴备用格式"));
       reader.readAsDataURL(blob);
     });
-  }
-  async function clipboardRepresentations(blob, mime) {
-    const representations = { [mime]: blob };
-    // 某些富文本目标不识别 SVG MIME，但能识别 HTML 中的 data URI；字节仍来自同一份原始资源。
-    if (blob.size <= 4 * 1024 * 1024) {
-      const dataUrl = await blobDataUrl(blob);
-      representations["text/html"] = new Blob([`<img src="${dataUrl}" alt="" />`], { type: "text/html" });
-    }
-    if (mime === "image/svg+xml") representations["text/plain"] = new Blob([await blob.text()], { type: "text/plain" });
-    return representations;
   }
   function copyFailureLabel(error) {
     if (error?.name === "NotAllowedError" || error?.code === "clipboard") return "CLIPBOARD BLOCKED";
@@ -372,19 +398,22 @@
     button.textContent = "COPYING…";
     button.disabled = true;
     try {
-      if (!navigator.clipboard?.write || typeof ClipboardItem === "undefined") throw copyError("clipboard", "浏览器未开放图片剪贴板权限");
       const blob = await selectedResource.blob();
       const mime = blob.type.split(";")[0].toLowerCase();
       if (!mime.startsWith("image/")) throw copyError("format", "无法确认资源的原始图片格式");
-      if (ClipboardItem.supports && !ClipboardItem.supports(mime)) throw copyError("format", `系统剪贴板不支持 ${mime} 原始格式`);
+      const dataUrl = await blobDataUrl(blob);
+      const base64 = String(dataUrl).split(",", 2)[1];
+      if (!base64 || !chrome.runtime?.sendMessage) throw copyError("clipboard", "扩展无法访问离屏剪贴板");
       try {
-        const representations = await clipboardRepresentations(blob, mime);
-        await navigator.clipboard.write([new ClipboardItem(representations, { presentationStyle: "inline" })]);
+        const response = await chrome.runtime.sendMessage({ type: "style-scope:copy-image", base64, mime });
+        if (!response?.ok) throw copyError(response?.code || "clipboard", response?.error || "图片复制失败");
+        button.dataset.clipboardMime = response.clipboardMime || mime;
       } catch (error) {
+        if (error?.code) throw error;
         const unsupported = error?.name === "NotSupportedError" || error?.name === "TypeError";
         throw copyError(unsupported ? "format" : "clipboard", unsupported ? `系统剪贴板不支持 ${mime} 原始格式` : "浏览器阻止写入图片剪贴板");
       }
-      button.textContent = mime === "image/svg+xml" ? "COPIED SVG" : "COPIED";
+      button.textContent = mime === "image/svg+xml" ? "COPIED SVG" : button.dataset.clipboardMime === mime ? "COPIED ORIGINAL" : "COPIED IMAGE";
       button.classList.add("is-copied");
     } catch (error) {
       button.textContent = copyFailureLabel(error);
@@ -396,8 +425,9 @@
       button.textContent = selectedResource?.label || "COPY ORIGINAL";
       button.title = selectedResource ? `复制${selectedResource.description}到剪贴板` : "";
       button.disabled = false;
+      delete button.dataset.clipboardMime;
       button.classList.remove("is-copied", "is-failed");
-    }, 1500);
+    }, 3000);
   }
   function sampleText(element) {
     const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);

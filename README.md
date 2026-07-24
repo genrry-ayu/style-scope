@@ -9,7 +9,7 @@
 - 直接标注 margin、border、padding、content，以及图标与文字之间的 `gap`
 - 选中对象后悬停另一个对象，显示 `X / Y` 边缘距离
 - 父子包含关系显示 `T / R / B / L` 四边内嵌距离
-- 复制资源时保留原始格式：PNG/JPG/WebP 保持原文件，内联 SVG 保持 SVG
+- 复制资源时保留原始格式：PNG/JPG/WebP 保留原始字节，并附带 PNG 剪贴板兼容表示；内联 SVG 保持 SVG
 - `⌘ + E` 开关检视；`Esc` 立即退出
 
 ## 安装
