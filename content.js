@@ -80,7 +80,7 @@
     .content-label { top:2px; left:2px; color:#dceafa; }
     #panel { position:fixed; z-index:2147483647; display:none; width:420px; max-height:calc(100vh - 16px); overflow-x:hidden; overflow-y:auto; pointer-events:auto; border:1px solid rgba(244,187,76,.78); background:#151615; box-shadow:0 18px 46px rgba(0,0,0,.42), 0 0 0 1px rgba(255,246,224,.08); }
     #panel::before { display:none; }
-    .panel-head, .group, .box-model { position:relative; }.panel-head { padding:14px 16px 13px; border-bottom:1px solid rgba(255,255,255,.13); background:#1b1c1b; }.kicker { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; color:#f4bb4c; font-size:12px; font-weight:700; letter-spacing:.12em; }.kicker span:last-child { color:#aaa398; font-size:12px; }.selector-line { display:flex; align-items:center; gap:10px; min-width:0; }.selector { min-width:0; overflow:hidden; color:#f7f0e2; font-size:14px; line-height:1.25; white-space:nowrap; text-overflow:ellipsis; }.selector b { color:#f4bb4c; font-weight:500; }.resource-copy { flex:none; padding:6px 8px; cursor:pointer; color:#f7d881; border:1px solid rgba(244,187,76,.72); border-radius:2px; background:#201d15; font:700 10px/1 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing:.07em; white-space:nowrap; }.resource-copy:hover, .resource-copy:focus-visible { outline:none; color:#1a1710; border-color:#f4bb4c; background:#f4bb4c; }.resource-copy.is-copied { color:#b8f2e8; border-color:rgba(104,205,194,.85); background:#122421; }.resource-copy.is-failed { color:#ffad9d; border-color:rgba(238,120,102,.85); background:#2a1715; }.meta { margin-top:8px; color:#b5aea0; font-size:12px; line-height:1.25; }
+    .panel-head, .group, .box-model { position:relative; }.panel-head { padding:14px 16px 13px; border-bottom:1px solid rgba(255,255,255,.13); background:#1b1c1b; }.kicker { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; color:#f4bb4c; font-size:12px; font-weight:700; letter-spacing:.12em; }.kicker span:last-child { color:#aaa398; font-size:12px; }.selector-line { display:flex; align-items:center; gap:10px; min-width:0; }.selector { min-width:0; overflow:hidden; color:#f7f0e2; font-size:14px; line-height:1.25; white-space:nowrap; text-overflow:ellipsis; }.selector b { color:#f4bb4c; font-weight:500; }.resource-copy { flex:none; padding:6px 8px; cursor:pointer; color:#f7d881; border:1px solid rgba(244,187,76,.72); border-radius:2px; background:#201d15; font:700 10px/1 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing:.07em; white-space:nowrap; }.resource-copy:hover, .resource-copy:focus-visible { outline:none; color:#1a1710; border-color:#f4bb4c; background:#f4bb4c; }.resource-copy:disabled { cursor:progress; opacity:.58; }.resource-copy.is-copied { color:#b8f2e8; border-color:rgba(104,205,194,.85); background:#122421; }.resource-copy.is-failed { color:#ffad9d; border-color:rgba(238,120,102,.85); background:#2a1715; }.meta { margin-top:8px; color:#b5aea0; font-size:12px; line-height:1.25; }
     .groups { display:grid; grid-template-columns:1fr 1fr; }.group { min-width:0; padding:13px 14px 12px; border-bottom:1px solid rgba(255,255,255,.1); }.group:first-child { border-right:1px solid rgba(255,255,255,.1); }.group-title { margin-bottom:9px; color:#f4bb4c; font-size:12px; font-weight:700; letter-spacing:.12em; }.row { position:relative; display:grid; grid-template-columns:minmax(84px,.95fr) minmax(0,1.2fr); gap:8px; align-items:baseline; padding:3px 0; font-size:12px; line-height:1.2; }.key, .value { cursor:help; }.key { overflow:hidden; color:#aaa49a; text-overflow:ellipsis; white-space:nowrap; }.value { overflow:hidden; color:#e3ddd2; text-align:right; text-overflow:ellipsis; white-space:nowrap; }.value.colour { overflow:visible; color:#f2dfb4; }.row:hover .key { color:#f4bb4c; }.value .chip { display:inline-block; width:9px; height:9px; margin-right:5px; vertical-align:-1px; border:1px solid rgba(255,255,255,.25); border-radius:50%; }.alpha { color:#a99f8d; }
     .box-model { padding:14px; border-bottom:1px solid rgba(255,255,255,.1); }.box-title { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px; color:#f4bb4c; font-size:12px; font-weight:700; letter-spacing:.12em; }.box-size { color:#bab3a6; font-size:12px; font-weight:400; letter-spacing:0; }.content-sample { overflow:hidden; margin:0 0 10px; padding:9px 11px; color:#ded6c7; border-left:2px solid rgba(100,188,174,.9); background:#17211f; font-size:12px; line-height:1.3; text-overflow:ellipsis; white-space:nowrap; }.content-sample b { color:#82c5b7; font-size:12px; font-weight:700; letter-spacing:.08em; }.inset-grid { display:grid; grid-template-columns:1fr 1fr; gap:7px; }.inset { display:flex; align-items:baseline; justify-content:space-between; padding:8px 9px; border:1px solid rgba(100,188,174,.36); background:#16201e; }.inset span { color:#9ca59f; font-size:12px; letter-spacing:.06em; }.inset b { color:#e8e0d3; font-size:13px; font-weight:500; }.copy-note { display:block; margin-top:11px; color:#989289; font-size:10px; text-align:right; }
     #detail-tooltip { position:fixed; z-index:2147483647; display:none; max-width:min(360px, calc(100vw - 24px)); padding:7px 9px; pointer-events:none; border:1px solid rgba(244,187,76,.64); background:#0e0f0e; box-shadow:0 7px 16px rgba(0,0,0,.25); color:#f4ead9; font-size:12px; line-height:1.4; white-space:pre-line; overflow-wrap:anywhere; }
@@ -92,7 +92,8 @@
     host.id = ROOT_ID;
     host.setAttribute("aria-hidden", "true");
     (document.documentElement || document.body).append(host);
-    root = host.attachShadow({ mode: "closed" });
+    // 演示页开放 Shadow DOM 便于真实交互验收；扩展环境仍保持隔离。
+    root = host.attachShadow({ mode: chrome.runtime?.id ? "closed" : "open" });
     root.innerHTML = `<style>${styles}</style><div id="frame"><div id="hover-preview"><span></span></div><div id="distance-x-guide"><span></span></div><div id="distance-y-guide"><span></span></div><div id="distance-readout"></div><div id="margin-layer" data-kind="M"><span class="edge-label" data-edge="top"></span><span class="edge-label" data-edge="right"></span><span class="edge-label" data-edge="bottom"></span><span class="edge-label" data-edge="left"></span></div><div id="outline"></div><div id="border-layer" data-kind="B"><span class="edge-label" data-edge="top"></span><span class="edge-label" data-edge="right"></span><span class="edge-label" data-edge="bottom"></span><span class="edge-label" data-edge="left"></span></div><div id="padding-layer" data-kind="P"><span class="edge-label" data-edge="top"></span><span class="edge-label" data-edge="right"></span><span class="edge-label" data-edge="bottom"></span><span class="edge-label" data-edge="left"></span></div><div id="content-layer"><span class="content-label"></span></div><div id="child-gap"><span></span></div></div><section id="panel"></section><div id="detail-tooltip" role="tooltip"></div>`;
     hoverPreview = root.querySelector("#hover-preview");
     hoverPreviewLabel = hoverPreview.querySelector("span");
@@ -284,20 +285,40 @@
     return `${tag}${classes ? `<b>${classes}</b>` : ""}`;
   }
   function resourceFor(element) {
+    const originalTag = element.tagName.toLowerCase();
+    if (element.namespaceURI === "http://www.w3.org/2000/svg" && originalTag !== "svg" && originalTag !== "image") {
+      element = element.ownerSVGElement || element.closest?.("svg") || element;
+    }
     const tag = element.tagName.toLowerCase();
     if (tag === "img") {
       const source = element.currentSrc || element.src || element.getAttribute("src");
-      return source ? { label: "COPY ORIGINAL", description: "原始图片", blob: () => fetchImage(source) } : null;
+      return source ? {
+        kind: "raster",
+        label: "COPY IMAGE",
+        description: "图片",
+        state: "idle",
+        blob: async () => {
+          try {
+            return await fetchImage(source);
+          } catch (fetchError) {
+            try {
+              return await pngFromImageElement(element);
+            } catch (_) {
+              throw fetchError;
+            }
+          }
+        }
+      } : null;
     }
     if (tag === "svg") {
-      return { label: "COPY SVG", description: "SVG 矢量图", blob: () => Promise.resolve(svgBlob(element)) };
+      return { kind: "svg", label: "COPY SVG", description: "SVG 矢量图", state: "idle", blob: () => Promise.resolve(svgBlob(element)) };
     }
     if (tag === "image" && element.namespaceURI === "http://www.w3.org/2000/svg") {
       const source = element.href?.baseVal || element.getAttribute("href") || element.getAttribute("xlink:href");
-      return source ? { label: "COPY ORIGINAL", description: "SVG 引用图片", blob: () => fetchImage(source) } : null;
+      return source ? { kind: "raster", label: "COPY IMAGE", description: "SVG 引用图片", state: "idle", blob: () => fetchImage(source) } : null;
     }
     if (tag === "canvas") {
-      return { label: "COPY PNG", description: "画布导出图像", blob: () => canvasBlob(element) };
+      return { kind: "raster", label: "COPY PNG", description: "画布导出图像", state: "idle", blob: () => canvasBlob(element) };
     }
     return null;
   }
@@ -376,13 +397,126 @@
   function canvasBlob(canvas) {
     return new Promise((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(copyError("render", "画布无法导出 PNG")), "image/png"));
   }
-  function blobDataUrl(blob) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = () => reject(copyError("format", "资源无法生成粘贴备用格式"));
-      reader.readAsDataURL(blob);
-    });
+  async function pngFromImageElement(image) {
+    if (!image.complete || !image.naturalWidth || !image.naturalHeight) {
+      try { await image.decode(); }
+      catch (_) { throw copyError("render", "页面中的图片尚未加载完成"); }
+    }
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.max(1, image.naturalWidth);
+    canvas.height = Math.max(1, image.naturalHeight);
+    const context = canvas.getContext("2d");
+    if (!context) throw copyError("render", "无法创建图片画布");
+    try {
+      context.drawImage(image, 0, 0, canvas.width, canvas.height);
+      return await canvasBlob(canvas);
+    } catch (_) {
+      throw copyError("render", "页面限制了图片像素读取");
+    }
+  }
+  function clipboardSupports(type) {
+    try { return !ClipboardItem.supports || ClipboardItem.supports(type); }
+    catch (_) { return false; }
+  }
+  async function pngFromImageBlob(blob) {
+    let bitmap;
+    try {
+      bitmap = await createImageBitmap(blob);
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.max(1, bitmap.width);
+      canvas.height = Math.max(1, bitmap.height);
+      const context = canvas.getContext("2d");
+      if (!context) throw copyError("format", "无法创建图片画布");
+      context.drawImage(bitmap, 0, 0);
+      return await canvasBlob(canvas);
+    } catch (bitmapError) {
+      const objectUrl = URL.createObjectURL(blob);
+      try {
+        const image = new Image();
+        image.src = objectUrl;
+        await image.decode();
+        return await pngFromImageElement(image);
+      } catch (_) {
+        throw bitmapError;
+      } finally {
+        URL.revokeObjectURL(objectUrl);
+      }
+    } finally {
+      bitmap?.close?.();
+    }
+  }
+  async function prepareClipboardPayload(resource) {
+    const source = await resource.blob();
+    if (!source?.type?.startsWith("image/")) throw copyError("format", "无法确认资源的图片格式");
+    if (resource.kind === "svg" || source.type === "image/svg+xml") {
+      const svg = source.type === "image/svg+xml" ? source : new Blob([source], { type: "image/svg+xml" });
+      let png = null;
+      try { png = await pngFromImageBlob(svg); }
+      catch (_) { /* SVG 原件仍可复制；PNG 只是兼容表示。 */ }
+      return { svg, png };
+    }
+    const png = source.type === "image/png" ? source : await pngFromImageBlob(source);
+    return { png };
+  }
+  function clipboardItemFor(payload) {
+    if (!navigator.clipboard?.write || typeof ClipboardItem === "undefined") {
+      throw copyError("clipboard", "当前页面未开放图片剪贴板");
+    }
+    const representations = {};
+    if (payload.svg && clipboardSupports("image/svg+xml")) representations["image/svg+xml"] = payload.svg;
+    if (payload.png && clipboardSupports("image/png")) representations["image/png"] = payload.png;
+    const clipboardMime = representations["image/svg+xml"] ? "image/svg+xml" : representations["image/png"] ? "image/png" : "";
+    if (!clipboardMime) throw copyError("format", "系统剪贴板不支持此图片格式");
+    return {
+      item: new ClipboardItem(representations),
+      clipboardMime
+    };
+  }
+  function resourceButton() {
+    return panel?.querySelector("[data-copy-resource]");
+  }
+  function syncResourceButton(resource) {
+    if (selectedResource !== resource) return;
+    const button = resourceButton();
+    if (!button) return;
+    if (resource.state === "loading") {
+      button.textContent = "PREPARING…";
+      button.disabled = true;
+      return;
+    }
+    if (resource.state === "ready") {
+      button.textContent = resource.label;
+      button.title = `复制${resource.description}到剪贴板`;
+      button.disabled = false;
+      button.classList.remove("is-failed");
+      return;
+    }
+    if (resource.state === "error") {
+      button.textContent = "RETRY PREP";
+      button.title = resource.error?.message || "资源准备失败，点击重试";
+      button.disabled = false;
+      button.classList.add("is-failed");
+    }
+  }
+  function prepareResource(resource) {
+    if (!resource || resource.state === "loading" || resource.state === "ready") return resource?.preparing;
+    resource.state = "loading";
+    resource.error = null;
+    syncResourceButton(resource);
+    resource.preparing = prepareClipboardPayload(resource)
+      .then((payload) => {
+        resource.payload = payload;
+        resource.state = "ready";
+        syncResourceButton(resource);
+        return payload;
+      })
+      .catch((error) => {
+        resource.error = error;
+        resource.state = "error";
+        syncResourceButton(resource);
+        return null;
+      });
+    return resource.preparing;
   }
   function copyFailureLabel(error) {
     if (error?.name === "NotAllowedError" || error?.code === "clipboard") return "CLIPBOARD BLOCKED";
@@ -393,37 +527,36 @@
   async function copyResource(event) {
     const button = event.target.closest?.("[data-copy-resource]");
     if (!button || !selectedResource) return;
+    const resource = selectedResource;
     event.preventDefault();
     event.stopPropagation();
+    if (resource.state !== "ready" || !resource.payload) {
+      prepareResource(resource);
+      return;
+    }
     button.textContent = "COPYING…";
     button.disabled = true;
     try {
-      const blob = await selectedResource.blob();
-      const mime = blob.type.split(";")[0].toLowerCase();
-      if (!mime.startsWith("image/")) throw copyError("format", "无法确认资源的原始图片格式");
-      const dataUrl = await blobDataUrl(blob);
-      const base64 = String(dataUrl).split(",", 2)[1];
-      if (!base64 || !chrome.runtime?.sendMessage) throw copyError("clipboard", "扩展无法访问离屏剪贴板");
-      try {
-        const response = await chrome.runtime.sendMessage({ type: "style-scope:copy-image", base64, mime });
-        if (!response?.ok) throw copyError(response?.code || "clipboard", response?.error || "图片复制失败");
-        button.dataset.clipboardMime = response.clipboardMime || mime;
-      } catch (error) {
-        if (error?.code) throw error;
-        const unsupported = error?.name === "NotSupportedError" || error?.name === "TypeError";
-        throw copyError(unsupported ? "format" : "clipboard", unsupported ? `系统剪贴板不支持 ${mime} 原始格式` : "浏览器阻止写入图片剪贴板");
-      }
-      button.textContent = mime === "image/svg+xml" ? "COPIED SVG" : button.dataset.clipboardMime === mime ? "COPIED ORIGINAL" : "COPIED IMAGE";
+      // 资源已在选中后完成读取与转码；点击时只做同步构造，确保保留用户手势与焦点。
+      const { item, clipboardMime } = clipboardItemFor(resource.payload);
+      await navigator.clipboard.write([item]);
+      button.dataset.clipboardMime = clipboardMime;
+      button.dataset.copyResult = "success";
+      button.dataset.copyMime = clipboardMime;
+      delete button.dataset.copyError;
+      button.textContent = resource.payload.svg ? "COPIED SVG" : "COPIED IMAGE";
       button.classList.add("is-copied");
     } catch (error) {
+      button.dataset.copyResult = "failed";
+      button.dataset.copyError = error?.message || "图片复制失败";
       button.textContent = copyFailureLabel(error);
       button.title = error.message || "图片复制失败";
       button.classList.add("is-failed");
     }
     window.setTimeout(() => {
       if (!button.isConnected) return;
-      button.textContent = selectedResource?.label || "COPY ORIGINAL";
-      button.title = selectedResource ? `复制${selectedResource.description}到剪贴板` : "";
+      button.textContent = resource.label;
+      button.title = `复制${resource.description}到剪贴板`;
       button.disabled = false;
       delete button.dataset.clipboardMime;
       button.classList.remove("is-copied", "is-failed");
@@ -449,7 +582,9 @@
     const insetGrid = insets.map(([direction, value]) => `<div class="inset"><span>${direction}</span><b>${value}</b></div>`).join("");
     const boxHint = childGap ? `content → 边缘 · gap ${Math.round(childGap.value)}px` : "content → 边缘";
     const state = locked ? "LOCKED · CLICKED" : "LIVE · HOVER";
-    const resourceAction = selectedResource ? `<button class="resource-copy" type="button" data-copy-resource title="复制${selectedResource.description}到剪贴板">${selectedResource.label}</button>` : "";
+    const resourceAction = selectedResource
+      ? `<button class="resource-copy" type="button" data-copy-resource${selectedResource.state === "loading" ? " disabled" : ""} title="复制${selectedResource.description}到剪贴板">${selectedResource.state === "loading" ? "PREPARING…" : selectedResource.label}</button>`
+      : "";
     const classes = [...element.classList].slice(0, 8);
     return `<div class="panel-head"><div class="kicker"><span>${state}</span><span>${element.tagName.toLowerCase()} · ${element.childElementCount} children</span></div><div class="selector-line"><div class="selector">${selectorFor(element)}</div>${resourceAction}</div><div class="meta">${Math.round(rect.width)} × ${Math.round(rect.height)} px&nbsp;&nbsp; · &nbsp;&nbsp;${classes.length ? `.${classes.join(".")}${element.classList.length > classes.length ? "…" : ""}` : "no class"}</div></div><div class="groups">${groups}</div><div class="box-model"><div class="box-title"><span>内容内距 / TEXT INSETS</span><span class="box-size">${boxHint}</span></div><div class="content-sample"><b>CONTENT&nbsp;&nbsp;</b>${text}</div><div class="inset-grid">${insetGrid}</div><span class="copy-note">⌘ + E 开关检视 · Esc 退出 · 点击重新选中</span></div>`;
   }
@@ -586,6 +721,7 @@
     cancelTokenLookup();
     panel.innerHTML = contentFor(element, rect, computed, childGap);
     place(rect, computed, childGap);
+    if (selectedResource && locked) prepareResource(selectedResource);
   }
   function hoverName(element) {
     const tag = element.tagName.toLowerCase();
@@ -816,7 +952,11 @@
   window.addEventListener("scroll", () => { schedulePlacement(); hideHoverPreview(); }, true);
   window.addEventListener("resize", () => { schedulePlacement(); hideHoverPreview(); });
   function apply(next) { settings = { ...DEFAULTS, ...next }; if (isActive()) createUI(); else hide(); }
-  chrome.runtime.onMessage.addListener((message) => { if (message?.type === "style-scope:update") apply(message.settings); });
+  chrome.runtime.onMessage.addListener((message) => {
+    if (message?.type === "style-scope:update") {
+      apply(message.settings);
+    }
+  });
   chrome.storage.onChanged?.addListener((changes, areaName) => {
     if (areaName !== "local") return;
     const patch = Object.fromEntries(Object.entries(changes).map(([key, change]) => [key, change.newValue]));

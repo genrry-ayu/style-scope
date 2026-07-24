@@ -33,7 +33,21 @@
       // 演示页用极小的扩展 API 桩启用真实的内容脚本；正式使用时由浏览器扩展提供这些 API。
       const demoSettings = { enabled: true };
       window.chrome = {
-        runtime: { onMessage: { addListener() {} } },
+        runtime: {
+          onMessage: { addListener() {} },
+          async sendMessage(message) {
+            if (message?.type !== "style-scope:fetch-image") return undefined;
+            const response = await fetch(message.url);
+            const blob = await response.blob();
+            const base64 = await new Promise((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(String(reader.result).split(",", 2)[1]);
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            });
+            return { ok: response.ok, base64, mime: blob.type };
+          }
+        },
         storage: {
           local: {
             get(defaults, callback) { callback({ ...defaults, ...demoSettings }); },
@@ -43,17 +57,24 @@
         }
       };
     </script>
-    <script src="content.js?v=1.4.7"></script>
+    <script src="content.js?v=1.5.0"></script>
     <script>
       // 仅供截图演示：距离或包含关系的测量，普通演示页不会执行。
       const previewParams = new URLSearchParams(location.search);
       const containmentPreview = previewParams.has("containment-preview");
       const resourcePreview = previewParams.has("resource-preview");
+      const blobResourcePreview = previewParams.has("blob-resource-preview");
       const svgResourcePreview = previewParams.has("svg-resource-preview");
-      if (previewParams.has("distance-preview") || containmentPreview || resourcePreview || svgResourcePreview) {
-        requestAnimationFrame(() => {
-          const source = document.querySelector(svgResourcePreview ? ".resource-vector" : resourcePreview ? ".resource-sample" : containmentPreview ? ".copy" : ".copy button");
-          const target = resourcePreview || svgResourcePreview ? source : document.querySelector(containmentPreview ? ".copy button" : ".swatch:nth-child(3)");
+      const svgPathResourcePreview = previewParams.has("svg-path-resource-preview");
+      if (previewParams.has("distance-preview") || containmentPreview || resourcePreview || blobResourcePreview || svgResourcePreview || svgPathResourcePreview) {
+        requestAnimationFrame(async () => {
+          const source = document.querySelector(svgPathResourcePreview ? ".resource-vector path" : svgResourcePreview ? ".resource-vector" : resourcePreview || blobResourcePreview ? ".resource-sample" : containmentPreview ? ".copy" : ".copy button");
+          if (blobResourcePreview) {
+            const response = await fetch(source.src);
+            source.src = URL.createObjectURL(await response.blob());
+            await source.decode();
+          }
+          const target = resourcePreview || blobResourcePreview || svgResourcePreview || svgPathResourcePreview ? source : document.querySelector(containmentPreview ? ".copy button" : ".swatch:nth-child(3)");
           source.dispatchEvent(new MouseEvent("click", { bubbles: true, composed: true }));
           requestAnimationFrame(() => {
             const rect = target.getBoundingClientRect();
