@@ -3,7 +3,7 @@
   globalThis.__styleScopeLoaded = true;
 
   const ROOT_ID = "__style_scope_root__";
-  const DEFAULTS = { enabled: false, panelMode: "follow", showInherited: false };
+  const DEFAULTS = { enabled: false };
   let settings = { ...DEFAULTS };
   let root;
   let hoverPreview;
@@ -23,12 +23,28 @@
   let panel;
   let detailTooltip;
   let inspected = null;
+  let selectedResource = null;
   let locked = false;
   let raf = 0;
+  let placementRaf = 0;
+  let pendingTarget = null;
+  let previewedTarget = null;
   let cursor = { x: 0, y: 0 };
+  let commandDown = false;
+  let cachedStyleRules = [];
+  let cachedStyleSheetCount = -1;
+  let matchedDeclarationsCache = new WeakMap();
+  let tokenAnalysis = null;
+  let tokenLookupJob = 0;
+  let currentDetailItem = null;
 
   const typographyProps = ["font-family", "font-size", "font-weight", "font-style", "line-height", "letter-spacing", "text-transform", "text-decoration-line", "text-decoration-color", "text-decoration-style", "color", "text-shadow", "white-space", "word-break"];
   const appearanceProps = ["background-color", "background-image", "opacity", "border-top", "border-right", "border-bottom", "border-left", "border-radius", "outline", "box-shadow", "filter", "mix-blend-mode", "visibility"];
+  // 已从 Aurora 样式库确认的固定色；其余颜色仅在页面源码可追溯到 CSS token 时展示，避免按色相猜测。
+  const AURORA_COLOUR_TOKENS = Object.freeze({
+    "#FFFFFF@100": ["token/static/white"],
+    "#000000@100": ["token/static/black"]
+  });
 
   const styles = `
     :host { all: initial; }
@@ -62,12 +78,12 @@
     .edge-label, .content-label { position:absolute; display:none; z-index:1; padding:1px 3px; border:1px solid rgba(17,18,17,.35); background:rgba(17,18,17,.68); box-shadow:0 1px 0 rgba(255,255,255,.12); color:#f6eedf; font-size:8px; font-weight:700; line-height:1.1; letter-spacing:.04em; white-space:nowrap; }
     .edge-label[data-edge="top"] { left:50%; transform:translateX(-50%); }.edge-label[data-edge="bottom"] { bottom:0; left:50%; transform:translateX(-50%); }.edge-label[data-edge="left"] { top:50%; left:0; transform:translateY(-50%); }.edge-label[data-edge="right"] { top:50%; right:0; transform:translateY(-50%); }
     .content-label { top:2px; left:2px; color:#dceafa; }
-    #panel { position:fixed; z-index:2147483647; display:none; width:360px; max-height:calc(100vh - 16px); overflow:auto; pointer-events:auto; border:1px solid rgba(244,187,76,.78); background:rgba(18,19,18,.97); box-shadow:0 18px 46px rgba(0,0,0,.42), 0 0 0 1px rgba(255,246,224,.08); backdrop-filter:blur(13px); }
-    #panel::before { position:absolute; inset:0; opacity:.26; content:""; pointer-events:none; background-image:linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px); background-size:5px 5px; }
-    .panel-head, .group, .box-model { position:relative; }.panel-head { padding:12px 13px 11px; border-bottom:1px solid rgba(255,255,255,.13); background:linear-gradient(90deg, rgba(244,187,76,.18), rgba(244,187,76,0)); }.kicker { display:flex; align-items:center; justify-content:space-between; margin-bottom:5px; color:#f4bb4c; font-size:9px; font-weight:700; letter-spacing:.14em; }.kicker span:last-child { color:#aaa398; font-size:8px; }.selector { overflow:hidden; color:#f7f0e2; font-size:12px; line-height:1.2; white-space:nowrap; text-overflow:ellipsis; }.selector b { color:#f4bb4c; font-weight:500; }.meta { margin-top:6px; color:#b5aea0; font-size:9px; line-height:1.2; }
-    .groups { display:grid; grid-template-columns:1fr 1fr; }.group { min-width:0; padding:10px 12px 9px; border-bottom:1px solid rgba(255,255,255,.1); }.group:first-child { border-right:1px solid rgba(255,255,255,.1); }.group-title { margin-bottom:7px; color:#f4bb4c; font-size:8px; font-weight:700; letter-spacing:.14em; }.row { position:relative; display:grid; grid-template-columns:minmax(50px,.9fr) minmax(0,1.2fr); gap:6px; align-items:baseline; padding:2px 0; font-size:9px; line-height:1.15; }.key, .value { cursor:help; }.key { overflow:hidden; color:#908a80; text-overflow:ellipsis; white-space:nowrap; }.value { overflow:hidden; color:#ddd6c9; text-align:right; text-overflow:ellipsis; white-space:nowrap; }.value.colour { overflow:visible; color:#f2dfb4; }.row:hover .key { color:#f4bb4c; }.value .chip { display:inline-block; width:7px; height:7px; margin-right:4px; vertical-align:-1px; border:1px solid rgba(255,255,255,.25); border-radius:50%; }.alpha { color:#a99f8d; }.inherited { color:#f4bb4c; }
-    .box-model { padding:11px 12px 12px; border-bottom:1px solid rgba(255,255,255,.1); }.box-title { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:5px; color:#f4bb4c; font-size:8px; font-weight:700; letter-spacing:.14em; }.box-size { color:#bab3a6; font-size:9px; font-weight:400; letter-spacing:0; }.content-sample { overflow:hidden; margin:0 0 8px; padding:7px 9px; color:#ded6c7; border-left:2px solid rgba(100,188,174,.9); background:rgba(100,188,174,.08); font-size:10px; line-height:1.2; text-overflow:ellipsis; white-space:nowrap; }.content-sample b { color:#82c5b7; font-size:8px; font-weight:700; letter-spacing:.1em; }.inset-grid { display:grid; grid-template-columns:1fr 1fr; gap:5px; }.inset { display:flex; align-items:baseline; justify-content:space-between; padding:6px 7px; border:1px solid rgba(100,188,174,.28); background:rgba(100,188,174,.06); }.inset span { color:#8c978f; font-size:8px; letter-spacing:.08em; }.inset b { color:#e8e0d3; font-size:11px; font-weight:500; }.copy-note { display:block; margin-top:9px; color:#7e796f; font-size:8px; text-align:right; }
-    #detail-tooltip { position:fixed; z-index:2147483647; display:none; max-width:min(330px, calc(100vw - 24px)); padding:5px 7px; pointer-events:none; border:1px solid rgba(244,187,76,.64); background:rgba(14,15,14,.98); box-shadow:0 7px 16px rgba(0,0,0,.25); color:#f4ead9; font-size:9px; line-height:1.35; overflow-wrap:anywhere; }
+    #panel { position:fixed; z-index:2147483647; display:none; width:420px; max-height:calc(100vh - 16px); overflow-x:hidden; overflow-y:auto; pointer-events:auto; border:1px solid rgba(244,187,76,.78); background:#151615; box-shadow:0 18px 46px rgba(0,0,0,.42), 0 0 0 1px rgba(255,246,224,.08); }
+    #panel::before { display:none; }
+    .panel-head, .group, .box-model { position:relative; }.panel-head { padding:14px 16px 13px; border-bottom:1px solid rgba(255,255,255,.13); background:#1b1c1b; }.kicker { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; color:#f4bb4c; font-size:12px; font-weight:700; letter-spacing:.12em; }.kicker span:last-child { color:#aaa398; font-size:12px; }.selector-line { display:flex; align-items:center; gap:10px; min-width:0; }.selector { min-width:0; overflow:hidden; color:#f7f0e2; font-size:14px; line-height:1.25; white-space:nowrap; text-overflow:ellipsis; }.selector b { color:#f4bb4c; font-weight:500; }.resource-copy { flex:none; padding:6px 8px; cursor:pointer; color:#f7d881; border:1px solid rgba(244,187,76,.72); border-radius:2px; background:#201d15; font:700 10px/1 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing:.07em; white-space:nowrap; }.resource-copy:hover, .resource-copy:focus-visible { outline:none; color:#1a1710; border-color:#f4bb4c; background:#f4bb4c; }.resource-copy.is-copied { color:#b8f2e8; border-color:rgba(104,205,194,.85); background:#122421; }.resource-copy.is-failed { color:#ffad9d; border-color:rgba(238,120,102,.85); background:#2a1715; }.meta { margin-top:8px; color:#b5aea0; font-size:12px; line-height:1.25; }
+    .groups { display:grid; grid-template-columns:1fr 1fr; }.group { min-width:0; padding:13px 14px 12px; border-bottom:1px solid rgba(255,255,255,.1); }.group:first-child { border-right:1px solid rgba(255,255,255,.1); }.group-title { margin-bottom:9px; color:#f4bb4c; font-size:12px; font-weight:700; letter-spacing:.12em; }.row { position:relative; display:grid; grid-template-columns:minmax(84px,.95fr) minmax(0,1.2fr); gap:8px; align-items:baseline; padding:3px 0; font-size:12px; line-height:1.2; }.key, .value { cursor:help; }.key { overflow:hidden; color:#aaa49a; text-overflow:ellipsis; white-space:nowrap; }.value { overflow:hidden; color:#e3ddd2; text-align:right; text-overflow:ellipsis; white-space:nowrap; }.value.colour { overflow:visible; color:#f2dfb4; }.row:hover .key { color:#f4bb4c; }.value .chip { display:inline-block; width:9px; height:9px; margin-right:5px; vertical-align:-1px; border:1px solid rgba(255,255,255,.25); border-radius:50%; }.alpha { color:#a99f8d; }
+    .box-model { padding:14px; border-bottom:1px solid rgba(255,255,255,.1); }.box-title { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px; color:#f4bb4c; font-size:12px; font-weight:700; letter-spacing:.12em; }.box-size { color:#bab3a6; font-size:12px; font-weight:400; letter-spacing:0; }.content-sample { overflow:hidden; margin:0 0 10px; padding:9px 11px; color:#ded6c7; border-left:2px solid rgba(100,188,174,.9); background:#17211f; font-size:12px; line-height:1.3; text-overflow:ellipsis; white-space:nowrap; }.content-sample b { color:#82c5b7; font-size:12px; font-weight:700; letter-spacing:.08em; }.inset-grid { display:grid; grid-template-columns:1fr 1fr; gap:7px; }.inset { display:flex; align-items:baseline; justify-content:space-between; padding:8px 9px; border:1px solid rgba(100,188,174,.36); background:#16201e; }.inset span { color:#9ca59f; font-size:12px; letter-spacing:.06em; }.inset b { color:#e8e0d3; font-size:13px; font-weight:500; }.copy-note { display:block; margin-top:11px; color:#989289; font-size:10px; text-align:right; }
+    #detail-tooltip { position:fixed; z-index:2147483647; display:none; max-width:min(360px, calc(100vw - 24px)); padding:7px 9px; pointer-events:none; border:1px solid rgba(244,187,76,.64); background:#0e0f0e; box-shadow:0 7px 16px rgba(0,0,0,.25); color:#f4ead9; font-size:12px; line-height:1.4; white-space:pre-line; overflow-wrap:anywhere; }
   `;
 
   function createUI() {
@@ -96,31 +112,170 @@
     detailTooltip = root.querySelector("#detail-tooltip");
     panel.addEventListener("mousemove", moveDetail);
     panel.addEventListener("mouseleave", hideDetail);
+    panel.addEventListener("click", copyResource);
   }
 
   function clean(value) { return !value || value === "normal" || value === "none" || value === "auto" ? "—" : value.replace(/,\s*/g, ", "); }
   function escapeMarkup(value) { return String(value).replace(/[&<>"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" })[character]); }
   function colourDetails(value) {
-    if (value === "transparent") return { hex: "transparent", alpha: "α 0%" };
-    const match = value?.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*,\s*([\d.]+))?\s*\)$/i);
+    const source = String(value || "").trim();
+    if (source.toLowerCase() === "transparent") return { hex: "#000000", alpha: "α 0%", key: "#000000@0" };
+    const hex = source.match(/^#([\da-f]{3,8})$/i);
+    if (hex) {
+      const digits = hex[1];
+      const expanded = digits.length <= 4 ? [...digits].map((digit) => digit + digit).join("") : digits;
+      if (expanded.length !== 6 && expanded.length !== 8) return null;
+      const opacity = expanded.length === 8 ? Math.round((Number.parseInt(expanded.slice(6), 16) / 255) * 100) : 100;
+      const colour = `#${expanded.slice(0, 6).toUpperCase()}`;
+      return { hex: colour, alpha: `α ${opacity}%`, key: `${colour}@${opacity}` };
+    }
+    const match = source.match(/^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)(?:\s*[,/]\s*([\d.]+%?))?\s*\)$/i);
     if (!match) return null;
-    const hex = `#${match.slice(1, 4).map((part) => Number(part).toString(16).padStart(2, "0")).join("").toUpperCase()}`;
-    const alpha = Math.round(Number(match[4] ?? 1) * 100);
-    return { hex, alpha: `α ${alpha}%` };
+    const colour = `#${match.slice(1, 4).map((part) => Number(part).toString(16).padStart(2, "0")).join("").toUpperCase()}`;
+    const rawAlpha = match[4] ?? "1";
+    const alpha = rawAlpha.endsWith("%") ? Math.round(Number.parseFloat(rawAlpha)) : Math.round(Number(rawAlpha) * 100);
+    return { hex: colour, alpha: `α ${alpha}%`, key: `${colour}@${alpha}` };
+  }
+  function colourKeys(value) {
+    const matches = String(value || "").match(/(?:rgba?\([^)]*\)|#[\da-f]{3,8}\b|\btransparent\b)/gi) || [];
+    return new Set(matches.map(colourDetails).filter(Boolean).map((colour) => colour.key));
+  }
+  function formattedColour(value) {
+    const detail = colourDetails(value);
+    return detail ? `${detail.hex} ${detail.alpha.replace("α ", "")}` : value;
+  }
+  function formatColourValue(value) {
+    const source = value || "—";
+    const direct = colourDetails(source);
+    if (direct) return formattedColour(source);
+    return source.replace(/(?:rgba?\([^)]*\)|#[\da-f]{3,8}\b|\btransparent\b)/gi, (match) => formattedColour(match));
+  }
+  function variablesIn(value) {
+    return [...String(value || "").matchAll(/var\(\s*(--[\w-]+)/g)].map((match) => match[1]);
+  }
+  function resolveVariable(element, name, seen = new Set(), computed = getComputedStyle(element)) {
+    if (!name || seen.has(name)) return "";
+    seen.add(name);
+    const value = computed.getPropertyValue(name).trim();
+    return value.replace(/var\(\s*(--[\w-]+)(?:\s*,[^)]*)?\)/g, (_, nested) => resolveVariable(element, nested, seen, computed));
+  }
+  function collectRules(ruleList, result) {
+    [...ruleList].forEach((rule) => {
+      if (rule.selectorText && rule.style) result.push(rule);
+      if (rule.cssRules) {
+        try { collectRules(rule.cssRules, result); } catch (_) { /* Cross-origin nested rules are intentionally skipped. */ }
+      }
+    });
+  }
+  function pageStyleRules() {
+    if (cachedStyleSheetCount === document.styleSheets.length) return cachedStyleRules;
+    const rules = [];
+    [...document.styleSheets].forEach((sheet) => {
+      try { collectRules(sheet.cssRules, rules); } catch (_) { /* A page may block CSSOM access to third-party sheets. */ }
+    });
+    cachedStyleRules = rules;
+    cachedStyleSheetCount = document.styleSheets.length;
+    matchedDeclarationsCache = new WeakMap();
+    return cachedStyleRules;
+  }
+  function sourcePropertiesFor(prop) {
+    if (prop === "background-color") return ["background-color", "background"];
+    if (prop.startsWith("border-")) return [prop, "border", "border-color", `${prop}-color`];
+    if (prop === "outline") return ["outline", "outline-color"];
+    if (prop === "box-shadow") return ["box-shadow"];
+    if (prop === "text-shadow") return ["text-shadow"];
+    return [prop];
+  }
+  function declarationsFor(element) {
+    const rules = pageStyleRules();
+    const signature = `${element.id}\u0000${element.getAttribute("class") || ""}\u0000${element.getAttribute("style") || ""}\u0000${cachedStyleSheetCount}`;
+    const cached = matchedDeclarationsCache.get(element);
+    if (cached?.signature === signature) return cached.values;
+    const values = new Map();
+    const add = (style) => {
+      if (!style) return;
+      for (let position = 0; position < style.length; position += 1) {
+        const property = style[position];
+        const value = style.getPropertyValue(property).trim();
+        if (!value) continue;
+        if (!values.has(property)) values.set(property, []);
+        values.get(property).push(value);
+      }
+    };
+    add(element.style);
+    rules.forEach((rule) => {
+      try {
+        if (element.matches(rule.selectorText)) add(rule.style);
+      } catch (_) { /* Unsupported selectors do not affect token discovery. */ }
+    });
+    matchedDeclarationsCache.set(element, { signature, values });
+    return values;
+  }
+  function declaredValuesFor(element, prop) {
+    const values = [];
+    const inherited = ["color", "font-family", "font-size", "font-weight", "font-style", "line-height", "letter-spacing", "text-transform", "text-decoration-color", "text-decoration-style", "white-space", "word-break"].includes(prop);
+    const sourceProperties = sourcePropertiesFor(prop);
+    for (let current = element; current && current.nodeType === Node.ELEMENT_NODE; current = inherited ? current.parentElement : null) {
+      const declarations = declarationsFor(current);
+      sourceProperties.forEach((sourceProperty) => values.push(...(declarations.get(sourceProperty) || [])));
+    }
+    return values;
+  }
+  function customPropertyColourIndex(element, computed = getComputedStyle(element)) {
+    const index = new Map();
+    for (let position = 0; position < computed.length; position += 1) {
+      const name = computed[position];
+      if (!name?.startsWith("--")) continue;
+      const resolved = resolveVariable(element, name, new Set(), computed);
+      colourKeys(resolved).forEach((key) => {
+        if (!index.has(key)) index.set(key, new Set());
+        index.get(key).add(name);
+      });
+    }
+    return index;
+  }
+  function tokenInfoFor(element, prop, computedValue, customPropertyIndex, computed = getComputedStyle(element)) {
+    const expected = colourKeys(computedValue);
+    if (!expected.size) return { source: [], candidates: [] };
+    const sourceNames = new Set();
+    const candidateNames = new Set([...expected].flatMap((key) => AURORA_COLOUR_TOKENS[key] || []));
+    declaredValuesFor(element, prop).forEach((value) => {
+      variablesIn(value).forEach((name) => {
+        const resolved = resolveVariable(element, name, new Set(), computed);
+        const resolvedKeys = colourKeys(resolved);
+        if ([...resolvedKeys].some((key) => expected.has(key))) sourceNames.add(name);
+      });
+    });
+    expected.forEach((key) => customPropertyIndex.get(key)?.forEach((name) => candidateNames.add(name)));
+    sourceNames.forEach((name) => candidateNames.delete(name));
+    return { source: [...sourceNames], candidates: [...candidateNames] };
+  }
+  function displayTokenName(token) {
+    if (!token.startsWith("--")) return token;
+    // CSS 变量常用前两段表达命名空间/类别，余下连字符保留为 token 自身名称。
+    return token.slice(2).replace("-", "/").replace("-", "/");
+  }
+  function detailFor(value, tokenInfo) {
+    const formatted = formatColourValue(value);
+    if (tokenInfo.source.length) {
+      return `SOURCE TOKEN\n${tokenInfo.source.map(displayTokenName).join("\n")}\n${formatted}`;
+    }
+    if (tokenInfo.candidates.length) {
+      return `MATCHING TOKENS · ${tokenInfo.candidates.length}\n${tokenInfo.candidates.map(displayTokenName).join("\n")}\n${formatted}`;
+    }
+    return formatted;
   }
   function readableName(prop) { return prop.replace(/^font-/, "").replace(/^background-/, "bg-").replace(/-([a-z])/g, (_, letter) => letter.toUpperCase()); }
-  function isInherited(element, prop, value) {
-    if (!settings.showInherited || !element.parentElement || !["color", "font-family", "font-size", "font-weight", "font-style", "line-height", "letter-spacing", "text-transform", "text-decoration-line", "white-space", "word-break"].includes(prop)) return false;
-    return getComputedStyle(element.parentElement).getPropertyValue(prop).trim() === value;
-  }
-  function row(element, prop, computed) {
+  function row(prop, computed) {
     const value = computed.getPropertyValue(prop).trim();
     const colour = ["color", "background-color", "text-decoration-color"].includes(prop) && colourDetails(value);
-    const inherited = isInherited(element, prop, value) ? " inherited" : "";
-    const source = inherited ? " <sup>↥</sup>" : "";
     const name = readableName(prop);
-    const renderedValue = colour ? `<i class="chip" style="background:${value}"></i>${colour.hex} <span class="alpha">${colour.alpha}</span>` : escapeMarkup(clean(value));
-    return `<div class="row"><span class="key${inherited}" data-detail="${escapeMarkup(name)}">${escapeMarkup(name)}${source}</span><span class="value${colour ? " colour" : ""}" data-detail="${escapeMarkup(value || "—")}">${renderedValue}</span></div>`;
+    const hasColour = colourKeys(value).size > 0;
+    const renderedValue = colour
+      ? `<i class="chip" style="background:${value}"></i>${colour.hex} <span class="alpha">${colour.alpha.replace("α ", "")}</span>`
+      : escapeMarkup(formatColourValue(clean(value)));
+    const tokenData = hasColour ? ` data-token-prop="${escapeMarkup(prop)}" data-token-value="${escapeMarkup(value)}"` : "";
+    return `<div class="row"><span class="key" data-detail="${escapeMarkup(name)}">${escapeMarkup(name)}</span><span class="value${colour ? " colour" : ""}" data-detail="${escapeMarkup(formatColourValue(value))}"${tokenData}>${renderedValue}</span></div>`;
   }
   function selectorFor(element) {
     const tag = element.tagName.toLowerCase();
@@ -128,26 +283,154 @@
     const classes = [...element.classList].slice(0, 2).map((name) => `.${CSS.escape(name)}`).join("");
     return `${tag}${classes ? `<b>${classes}</b>` : ""}`;
   }
-  function contentFor(element, rect) {
+  function resourceFor(element) {
+    const tag = element.tagName.toLowerCase();
+    if (tag === "img") {
+      const source = element.currentSrc || element.src || element.getAttribute("src");
+      return source ? { label: "COPY ORIGINAL", description: "原始图片", blob: () => fetchImage(source) } : null;
+    }
+    if (tag === "svg") {
+      return { label: "COPY SVG", description: "SVG 矢量图", blob: () => Promise.resolve(svgBlob(element)) };
+    }
+    if (tag === "image" && element.namespaceURI === "http://www.w3.org/2000/svg") {
+      const source = element.href?.baseVal || element.getAttribute("href") || element.getAttribute("xlink:href");
+      return source ? { label: "COPY ORIGINAL", description: "SVG 引用图片", blob: () => fetchImage(source) } : null;
+    }
+    if (tag === "canvas") {
+      return { label: "COPY PNG", description: "画布导出图像", blob: () => canvasBlob(element) };
+    }
+    return null;
+  }
+  function copyError(code, message) {
+    const error = new Error(message);
+    error.code = code;
+    return error;
+  }
+  function svgBlob(element) {
+    const clone = element.cloneNode(true);
+    const rect = element.getBoundingClientRect();
     const computed = getComputedStyle(element);
+    clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+    if (!clone.getAttribute("width")) clone.setAttribute("width", String(Math.max(1, Math.round(rect.width))));
+    if (!clone.getAttribute("height")) clone.setAttribute("height", String(Math.max(1, Math.round(rect.height))));
+    clone.setAttribute("style", `${clone.getAttribute("style") || ""};color:${computed.color};fill:${computed.fill};stroke:${computed.stroke}`);
+    const references = [...clone.querySelectorAll("use")]
+      .map((use) => use.getAttribute("href") || use.getAttribute("xlink:href"))
+      .filter((reference) => reference?.startsWith("#"));
+    if (references.length) {
+      const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+      [...new Set(references)].forEach((reference) => {
+        const source = document.getElementById(reference.slice(1));
+        if (source) defs.append(source.cloneNode(true));
+      });
+      if (defs.childNodes.length) clone.insertBefore(defs, clone.firstChild);
+    }
+    const markup = new XMLSerializer().serializeToString(clone);
+    return new Blob([markup], { type: "image/svg+xml" });
+  }
+  async function fetchImage(source) {
+    const response = await fetch(source, { credentials: "include" });
+    if (!response.ok) throw copyError("network", `资源请求失败（${response.status}）`);
+    const blob = await response.blob();
+    if (blob.type.startsWith("image/")) return blob;
+    const extension = new URL(source, document.baseURI).pathname.split(".").pop()?.toLowerCase();
+    const mime = { svg: "image/svg+xml", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp", avif: "image/avif" }[extension];
+    return mime ? new Blob([blob], { type: mime }) : blob;
+  }
+  function canvasBlob(canvas) {
+    return new Promise((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(copyError("render", "画布无法导出 PNG")), "image/png"));
+  }
+  function blobDataUrl(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(copyError("format", "资源无法生成粘贴备用格式"));
+      reader.readAsDataURL(blob);
+    });
+  }
+  async function clipboardRepresentations(blob, mime) {
+    const representations = { [mime]: blob };
+    // 某些富文本目标不识别 SVG MIME，但能识别 HTML 中的 data URI；字节仍来自同一份原始资源。
+    if (blob.size <= 4 * 1024 * 1024) {
+      const dataUrl = await blobDataUrl(blob);
+      representations["text/html"] = new Blob([`<img src="${dataUrl}" alt="" />`], { type: "text/html" });
+    }
+    if (mime === "image/svg+xml") representations["text/plain"] = new Blob([await blob.text()], { type: "text/plain" });
+    return representations;
+  }
+  function copyFailureLabel(error) {
+    if (error?.name === "NotAllowedError" || error?.code === "clipboard") return "CLIPBOARD BLOCKED";
+    if (error?.code === "network") return "IMAGE UNAVAILABLE";
+    if (error?.code === "format") return "FORMAT UNSUPPORTED";
+    return "COPY FAILED";
+  }
+  async function copyResource(event) {
+    const button = event.target.closest?.("[data-copy-resource]");
+    if (!button || !selectedResource) return;
+    event.preventDefault();
+    event.stopPropagation();
+    button.textContent = "COPYING…";
+    button.disabled = true;
+    try {
+      if (!navigator.clipboard?.write || typeof ClipboardItem === "undefined") throw copyError("clipboard", "浏览器未开放图片剪贴板权限");
+      const blob = await selectedResource.blob();
+      const mime = blob.type.split(";")[0].toLowerCase();
+      if (!mime.startsWith("image/")) throw copyError("format", "无法确认资源的原始图片格式");
+      if (ClipboardItem.supports && !ClipboardItem.supports(mime)) throw copyError("format", `系统剪贴板不支持 ${mime} 原始格式`);
+      try {
+        const representations = await clipboardRepresentations(blob, mime);
+        await navigator.clipboard.write([new ClipboardItem(representations, { presentationStyle: "inline" })]);
+      } catch (error) {
+        const unsupported = error?.name === "NotSupportedError" || error?.name === "TypeError";
+        throw copyError(unsupported ? "format" : "clipboard", unsupported ? `系统剪贴板不支持 ${mime} 原始格式` : "浏览器阻止写入图片剪贴板");
+      }
+      button.textContent = mime === "image/svg+xml" ? "COPIED SVG" : "COPIED";
+      button.classList.add("is-copied");
+    } catch (error) {
+      button.textContent = copyFailureLabel(error);
+      button.title = error.message || "图片复制失败";
+      button.classList.add("is-failed");
+    }
+    window.setTimeout(() => {
+      if (!button.isConnected) return;
+      button.textContent = selectedResource?.label || "COPY ORIGINAL";
+      button.title = selectedResource ? `复制${selectedResource.description}到剪贴板` : "";
+      button.disabled = false;
+      button.classList.remove("is-copied", "is-failed");
+    }, 1500);
+  }
+  function sampleText(element) {
+    const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+    let sample = "";
+    let visited = 0;
+    while (sample.length < 42 && visited < 24) {
+      const node = walker.nextNode();
+      if (!node) break;
+      sample += ` ${node.nodeValue || ""}`;
+      visited += 1;
+    }
+    return sample.trim().replace(/\s+/g, " ").slice(0, 42) || "无文字内容";
+  }
+  function contentFor(element, rect, computed, childGap) {
     const sets = [["排版 / TYPE", typographyProps], ["外观 / LOOK", appearanceProps]];
-    const groups = sets.map(([title, props]) => `<div class="group"><div class="group-title">${title}</div>${props.map((prop) => row(element, prop, computed)).join("")}</div>`).join("");
-    const text = element.textContent.trim().replace(/\s+/g, " ").slice(0, 42) || "无文字内容";
+    const groups = sets.map(([title, props]) => `<div class="group"><div class="group-title">${title}</div>${props.map((prop) => row(prop, computed)).join("")}</div>`).join("");
+    const text = sampleText(element);
     const insets = [["↑ 上", computed.paddingTop], ["→ 右", computed.paddingRight], ["↓ 下", computed.paddingBottom], ["← 左", computed.paddingLeft]];
     const insetGrid = insets.map(([direction, value]) => `<div class="inset"><span>${direction}</span><b>${value}</b></div>`).join("");
-    const childGap = measureChildGap(element);
     const boxHint = childGap ? `content → 边缘 · gap ${Math.round(childGap.value)}px` : "content → 边缘";
     const state = locked ? "LOCKED · CLICKED" : "LIVE · HOVER";
-    return `<div class="panel-head"><div class="kicker"><span>${state}</span><span>${element.tagName.toLowerCase()} · ${element.childElementCount} children</span></div><div class="selector">${selectorFor(element)}</div><div class="meta">${Math.round(rect.width)} × ${Math.round(rect.height)} px&nbsp;&nbsp; · &nbsp;&nbsp;${element.classList.length ? `.${[...element.classList].join(".")}` : "no class"}</div></div><div class="groups">${groups}</div><div class="box-model"><div class="box-title"><span>内容内距 / TEXT INSETS</span><span class="box-size">${boxHint}</span></div><div class="content-sample"><b>CONTENT&nbsp;&nbsp;</b>${text}</div><div class="inset-grid">${insetGrid}</div><span class="copy-note">⌘ + Caps Lock 开关检视 · 点击重新选中 · ⌘C 复制样式</span></div>`;
+    const resourceAction = selectedResource ? `<button class="resource-copy" type="button" data-copy-resource title="复制${selectedResource.description}到剪贴板">${selectedResource.label}</button>` : "";
+    const classes = [...element.classList].slice(0, 8);
+    return `<div class="panel-head"><div class="kicker"><span>${state}</span><span>${element.tagName.toLowerCase()} · ${element.childElementCount} children</span></div><div class="selector-line"><div class="selector">${selectorFor(element)}</div>${resourceAction}</div><div class="meta">${Math.round(rect.width)} × ${Math.round(rect.height)} px&nbsp;&nbsp; · &nbsp;&nbsp;${classes.length ? `.${classes.join(".")}${element.classList.length > classes.length ? "…" : ""}` : "no class"}</div></div><div class="groups">${groups}</div><div class="box-model"><div class="box-title"><span>内容内距 / TEXT INSETS</span><span class="box-size">${boxHint}</span></div><div class="content-sample"><b>CONTENT&nbsp;&nbsp;</b>${text}</div><div class="inset-grid">${insetGrid}</div><span class="copy-note">⌘ + E 开关检视 · Esc 退出 · 点击重新选中</span></div>`;
   }
-  function place(rect) {
+  function place(rect, computed, childGap) {
     if (!overlay || !panel || !inspected) return;
     overlay.classList.toggle("is-locked", locked);
-    paintBoxModel(rect);
+    paintBoxModel(rect, computed, childGap);
     panel.style.display = "block";
     const gap = 14;
     const edge = 8;
-    const width = 360;
+    const width = panel.offsetWidth || 420;
     const height = Math.min(panel.offsetHeight || 420, window.innerHeight - edge * 2);
     const clamp = (value, min, max) => Math.max(min, Math.min(value, max));
     const candidates = [
@@ -176,10 +459,9 @@
     layer.style.height = `${rect.height}px`;
   }
 
-  function labelEdges(layer, values) {
+  function labelEdges(layer, values, rect) {
     if (!layer) return;
     const kind = layer.dataset.kind;
-    const rect = layer.getBoundingClientRect();
     ["top", "right", "bottom", "left"].forEach((edge) => {
       const label = layer.querySelector(`[data-edge="${edge}"]`);
       const value = values[edge];
@@ -195,11 +477,15 @@
     });
   }
 
-  function measureChildGap(element) {
-    const layout = getComputedStyle(element);
+  function measureChildGap(element, layout = getComputedStyle(element)) {
     if (!/(flex|grid)/.test(layout.display)) return null;
     const vertical = layout.flexDirection === "column" || layout.flexDirection === "column-reverse";
-    const children = [...element.children].map((child) => child.getBoundingClientRect()).filter((rect) => rect.width > 0 && rect.height > 0);
+    const children = [];
+    const scanLimit = Math.min(element.children.length, 32);
+    for (let index = 0; index < scanLimit; index += 1) {
+      const rect = element.children[index].getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) children.push(rect);
+    }
     if (children.length < 2) return null;
     children.sort((a, b) => vertical ? a.top - b.top : a.left - b.left);
     for (let index = 0; index < children.length - 1; index += 1) {
@@ -224,8 +510,7 @@
     childGapLabel.textContent = `G ${Math.round(gap.value)}px`;
   }
 
-  function paintBoxModel(rect) {
-    const style = getComputedStyle(inspected);
+  function paintBoxModel(rect, style = getComputedStyle(inspected), childGap = measureChildGap(inspected, style)) {
     const px = (value) => Number.parseFloat(value) || 0;
     const margin = { top: px(style.marginTop), right: px(style.marginRight), bottom: px(style.marginBottom), left: px(style.marginLeft) };
     const border = { top: px(style.borderTopWidth), right: px(style.borderRightWidth), bottom: px(style.borderBottomWidth), left: px(style.borderLeftWidth) };
@@ -239,10 +524,10 @@
     setLayer(borderLayer, borderBox);
     setLayer(paddingLayer, paddingBox);
     setLayer(contentLayer, contentBox);
-    paintChildGap(measureChildGap(inspected));
-    labelEdges(marginLayer, margin);
-    labelEdges(borderLayer, border);
-    labelEdges(paddingLayer, padding);
+    paintChildGap(childGap);
+    labelEdges(marginLayer, margin, marginBox);
+    labelEdges(borderLayer, border, borderBox);
+    labelEdges(paddingLayer, padding, paddingBox);
     const contentLabel = contentLayer?.querySelector(".content-label");
     if (contentLabel) {
       contentLabel.textContent = `C ${Math.round(contentBox.width)} × ${Math.round(contentBox.height)}`;
@@ -250,15 +535,27 @@
     }
   }
   function isActive() { return settings.enabled; }
-  function isCommandCapsLock(event) {
-    return event.metaKey && (event.key === "CapsLock" || event.code === "CapsLock" || event.getModifierState?.("CapsLock"));
+  function isCommandKey(event) { return event.code === "MetaLeft" || event.code === "MetaRight"; }
+  function isCommandE(event) { return commandDown && event.metaKey && event.code === "KeyE"; }
+  function setInspectionEnabled(enabled) {
+    apply({ ...settings, enabled });
+    chrome.storage.local.set({ enabled });
+    if (!enabled) return;
+    const target = document.elementFromPoint(cursor.x, cursor.y);
+    if (target) inspect(target);
   }
   function inspect(element) {
     if (!isActive() || !element || element.id === ROOT_ID || element.closest?.(`#${ROOT_ID}`)) return;
     inspected = element;
+    previewedTarget = null;
+    selectedResource = resourceFor(element);
     const rect = element.getBoundingClientRect();
-    panel.innerHTML = contentFor(element, rect);
-    place(rect);
+    const computed = getComputedStyle(element);
+    const childGap = measureChildGap(element, computed);
+    tokenAnalysis = { element, computed, colourIndex: null, details: new Map() };
+    cancelTokenLookup();
+    panel.innerHTML = contentFor(element, rect, computed, childGap);
+    place(rect, computed, childGap);
   }
   function hoverName(element) {
     const tag = element.tagName.toLowerCase();
@@ -268,6 +565,7 @@
   }
   function hideHoverPreview() {
     if (hoverPreview) hoverPreview.style.display = "none";
+    previewedTarget = null;
     [distanceReadout, distanceXGuide, distanceYGuide].forEach((layer) => { if (layer) layer.style.display = "none"; });
   }
   function axisGap(firstStart, firstEnd, secondStart, secondEnd) {
@@ -338,6 +636,7 @@
     hoverPreview.style.height = `${rect.height}px`;
     hoverPreviewLabel.textContent = `HOVER · ${hoverName(element)} · ${Math.round(rect.width)} × ${Math.round(rect.height)}`;
     hoverPreview.dataset.target = hoverName(element);
+    previewedTarget = element;
     paintDistance(element, rect);
   }
   function ownUiEvent(event) { return event.composedPath().some((node) => node instanceof Element && node.id === ROOT_ID); }
@@ -350,33 +649,91 @@
     if (rect.right > window.innerWidth - 8) detailTooltip.style.left = `${Math.max(8, event.clientX - rect.width - gap)}px`;
     if (rect.bottom > window.innerHeight - 8) detailTooltip.style.top = `${Math.max(8, event.clientY - rect.height - gap)}px`;
   }
-  function showDetail(event) {
-    const item = event.target.closest?.("[data-detail]");
-    if (!item || !detailTooltip) return;
-    detailTooltip.textContent = item.dataset.detail;
-    detailTooltip.style.display = "block";
-    placeDetail(event);
+  function cancelTokenLookup() {
+    if (!tokenLookupJob) return;
+    if ("cancelIdleCallback" in window) window.cancelIdleCallback(tokenLookupJob);
+    else window.clearTimeout(tokenLookupJob);
+    tokenLookupJob = 0;
+  }
+  function scheduleTokenLookup(item) {
+    if (!item?.dataset.tokenProp || !tokenAnalysis) return;
+    const key = `${item.dataset.tokenProp}\u0000${item.dataset.tokenValue}`;
+    const cached = tokenAnalysis.details.get(key);
+    if (cached) {
+      item.dataset.detail = cached;
+      return;
+    }
+    cancelTokenLookup();
+    const analysis = tokenAnalysis;
+    const run = () => {
+      tokenLookupJob = 0;
+      if (tokenAnalysis !== analysis) return;
+      analysis.colourIndex ||= customPropertyColourIndex(analysis.element, analysis.computed);
+      const info = tokenInfoFor(analysis.element, item.dataset.tokenProp, item.dataset.tokenValue, analysis.colourIndex, analysis.computed);
+      const detail = detailFor(item.dataset.tokenValue, info);
+      analysis.details.set(key, detail);
+      if (!item.isConnected) return;
+      item.dataset.detail = detail;
+      if (currentDetailItem === item && detailTooltip?.style.display === "block") detailTooltip.textContent = detail;
+    };
+    tokenLookupJob = "requestIdleCallback" in window
+      ? window.requestIdleCallback(run, { timeout: 120 })
+      : window.setTimeout(run, 0);
   }
   function moveDetail(event) {
     const item = event.target.closest?.("[data-detail]");
     if (!item || !detailTooltip) { hideDetail(); return; }
+    if (currentDetailItem !== item) {
+      currentDetailItem = item;
+      scheduleTokenLookup(item);
+    }
     if (detailTooltip.textContent !== item.dataset.detail) detailTooltip.textContent = item.dataset.detail;
     detailTooltip.style.display = "block";
     placeDetail(event);
   }
-  function hideDetail() { if (detailTooltip) detailTooltip.style.display = "none"; }
+  function hideDetail() {
+    currentDetailItem = null;
+    cancelTokenLookup();
+    if (detailTooltip) detailTooltip.style.display = "none";
+  }
+  function cancelPointerWork() {
+    if (raf) cancelAnimationFrame(raf);
+    raf = 0;
+    pendingTarget = null;
+  }
+  function schedulePointerWork(target) {
+    pendingTarget = target;
+    if (raf) return;
+    raf = requestAnimationFrame(() => {
+      raf = 0;
+      const nextTarget = pendingTarget;
+      pendingTarget = null;
+      if (!nextTarget || !isActive()) return;
+      if (locked) previewHover(nextTarget);
+      else inspect(nextTarget);
+    });
+  }
+  function schedulePlacement() {
+    if (placementRaf || !inspected) return;
+    placementRaf = requestAnimationFrame(() => {
+      placementRaf = 0;
+      if (!inspected || !isActive()) return;
+      place(inspected.getBoundingClientRect());
+    });
+  }
   function onMove(event) {
     cursor = { x: event.clientX, y: event.clientY };
     if (!isActive()) return;
     if (ownUiEvent(event)) { hideHoverPreview(); return; }
     const target = targetFromEvent(event);
     if (locked) {
-      if (!target || target === inspected) { hideHoverPreview(); if (inspected) place(inspected.getBoundingClientRect()); return; }
-      cancelAnimationFrame(raf); raf = requestAnimationFrame(() => previewHover(target));
+      if (!target || target === inspected) { cancelPointerWork(); hideHoverPreview(); return; }
+      if (target === previewedTarget) return;
+      schedulePointerWork(target);
       return;
     }
-    if (!target || target === inspected) { if (inspected) place(inspected.getBoundingClientRect()); return; }
-    cancelAnimationFrame(raf); raf = requestAnimationFrame(() => inspect(target));
+    if (!target || target === inspected) { cancelPointerWork(); return; }
+    schedulePointerWork(target);
   }
   function targetFromEvent(event) {
     if (ownUiEvent(event)) return null;
@@ -394,33 +751,40 @@
     inspect(target);
   }
   function hide() {
+    cancelPointerWork();
+    cancelTokenLookup();
+    if (placementRaf) cancelAnimationFrame(placementRaf);
+    placementRaf = 0;
     locked = false;
     inspected = null;
+    tokenAnalysis = null;
+    selectedResource = null;
     [hoverPreview, distanceReadout, distanceXGuide, distanceYGuide, marginLayer, overlay, borderLayer, paddingLayer, contentLayer, childGapLayer, panel, detailTooltip].forEach((layer) => { if (layer) layer.style.display = "none"; });
   }
-  function toCssText(element) { const style = getComputedStyle(element); return [...style].map((property) => `${property}: ${style.getPropertyValue(property)};`).join("\n"); }
-
   document.addEventListener("mousemove", onMove, true);
   document.addEventListener("click", onClick, true);
   document.addEventListener("keydown", (event) => {
-    if (isCommandCapsLock(event) && !event.repeat) {
-      event.preventDefault();
-      event.stopPropagation();
-      const enabled = !settings.enabled;
-      apply({ ...settings, enabled });
-      chrome.storage.local.set({ enabled });
-      if (enabled) {
-        const target = document.elementFromPoint(cursor.x, cursor.y);
-        if (target) inspect(target);
-      }
+    if (isCommandKey(event)) {
+      commandDown = true;
       return;
     }
-    if (!isActive()) return;
-    if (event.key === "Escape") hide();
-    if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "c" && inspected) navigator.clipboard?.writeText(toCssText(inspected)).catch(() => {});
+    if (event.code === "Escape" && event.key === "Escape" && isActive()) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      setInspectionEnabled(false);
+      return;
+    }
+    if (!isCommandE(event) || event.repeat) return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    setInspectionEnabled(!settings.enabled);
   }, true);
-  window.addEventListener("scroll", () => { if (inspected) place(inspected.getBoundingClientRect()); hideHoverPreview(); }, true);
-  window.addEventListener("resize", () => { if (inspected) place(inspected.getBoundingClientRect()); hideHoverPreview(); });
+  document.addEventListener("keyup", (event) => {
+    if (isCommandKey(event)) commandDown = false;
+  }, true);
+  window.addEventListener("blur", () => { commandDown = false; });
+  window.addEventListener("scroll", () => { schedulePlacement(); hideHoverPreview(); }, true);
+  window.addEventListener("resize", () => { schedulePlacement(); hideHoverPreview(); });
   function apply(next) { settings = { ...DEFAULTS, ...next }; if (isActive()) createUI(); else hide(); }
   chrome.runtime.onMessage.addListener((message) => { if (message?.type === "style-scope:update") apply(message.settings); });
   chrome.storage.onChanged?.addListener((changes, areaName) => {

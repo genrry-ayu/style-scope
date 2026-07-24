@@ -1,24 +1,15 @@
-const DEFAULTS = { enabled: false, panelMode: "follow", showInherited: false };
+const DEFAULTS = { enabled: false };
 const $ = (selector) => document.querySelector(selector);
 const masterToggle = $("#masterToggle");
 const stateText = $("#stateText");
 const stateHint = $("#stateHint");
-const panelMode = $("#panelMode");
-const inheritedMode = $("#inheritedMode");
-
-function setSwitch(button, active) {
-  button.classList.toggle("is-on", active);
-  button.setAttribute("aria-checked", String(active));
-}
 
 function paint(settings) {
   const active = settings.enabled;
   document.body.classList.toggle("is-active", active);
   masterToggle.setAttribute("aria-checked", String(active));
   stateText.textContent = active ? "正在检视" : "已静默";
-  stateHint.textContent = active ? "悬停预览，点击即可锁定元素" : "⌘ + Caps Lock 开关检视";
-  setSwitch(panelMode, settings.panelMode === "follow");
-  setSwitch(inheritedMode, settings.showInherited);
+  stateHint.textContent = active ? "悬停预览，点击即可锁定元素" : "⌘ + E 开关检视";
 }
 
 function showHint(message, isError = false) {
@@ -57,8 +48,6 @@ function save(patch) {
 }
 
 masterToggle.addEventListener("click", () => save({ enabled: masterToggle.getAttribute("aria-checked") !== "true" }));
-panelMode.addEventListener("click", () => save({ panelMode: panelMode.getAttribute("aria-checked") === "true" ? "fixed" : "follow" }));
-inheritedMode.addEventListener("click", () => save({ showInherited: inheritedMode.getAttribute("aria-checked") !== "true" }));
 chrome.storage.local.get(DEFAULTS, (settings) => {
   paint(settings);
   if (settings.enabled) notifyActiveTab(settings);
