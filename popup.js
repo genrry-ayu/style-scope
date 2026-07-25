@@ -46,14 +46,19 @@ function notifyActiveTab(settings) {
 }
 
 function syncSidePanel(settings) {
-  if (!settings.enabled || settings.panelMode !== "sidebar") {
-    chrome.sidePanel?.setOptions({ enabled: false }).catch((error) => showHint(error.message, true));
-    return;
-  }
   chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
     if (tab?.windowId == null) return;
-    chrome.sidePanel.setOptions({ path: "sidepanel.html", enabled: true })
-      .then(() => chrome.sidePanel.open({ windowId: tab.windowId }))
+    if (!settings.enabled || settings.panelMode !== "sidebar") {
+      const closing = chrome.sidePanel.close
+        ? chrome.sidePanel.close({ windowId: tab.windowId })
+        : chrome.sidePanel.setOptions({ enabled: false });
+      closing.catch((error) => showHint(error.message, true));
+      return;
+    }
+    // Invoke open during the click callback; awaiting setOptions first loses user activation.
+    const configuring = chrome.sidePanel.setOptions({ path: "sidepanel.html", enabled: true });
+    const opening = chrome.sidePanel.open({ windowId: tab.windowId });
+    Promise.all([configuring, opening])
       .catch((error) => showHint(error.message || "无法打开侧边栏", true));
   });
 }

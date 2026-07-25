@@ -86,12 +86,18 @@ async function restoreInspection(tabId) {
 async function setSidePanelOpen(open, windowId) {
   if (!chrome.sidePanel) throw new Error("当前浏览器不支持扩展侧边栏");
   if (!open) {
-    await chrome.sidePanel.setOptions({ enabled: false });
+    if (windowId != null && chrome.sidePanel.close) {
+      await chrome.sidePanel.close({ windowId });
+    } else {
+      await chrome.sidePanel.setOptions({ enabled: false });
+    }
     return;
   }
   if (windowId == null) throw new Error("无法定位当前浏览器窗口");
-  await chrome.sidePanel.setOptions({ path: "sidepanel.html", enabled: true });
-  await chrome.sidePanel.open({ windowId });
+  // Both calls must start before yielding, otherwise the browser drops the click's user activation.
+  const configuring = chrome.sidePanel.setOptions({ path: "sidepanel.html", enabled: true });
+  const opening = chrome.sidePanel.open({ windowId });
+  await Promise.all([configuring, opening]);
 }
 
 function bytesToBase64(buffer) {
