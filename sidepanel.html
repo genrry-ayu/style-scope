@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Style Scope</title>
+    <link rel="stylesheet" href="sidepanel.css" />
+  </head>
+  <body>
+    <header class="side-head">
+      <div>
+        <p>ELEMENT INSPECTOR</p>
+        <h1>STYLE <span>SCOPE</span></h1>
+      </div>
+      <span id="versionText"></span>
+    </header>
+    <main>
+      <section id="emptyState" class="empty-state">
+        <strong>等待选择元素</strong>
+        <span>在当前页面点击需要检视的对象</span>
+      </section>
+      <section id="panel" aria-live="polite"></section>
+    </main>
+    <div id="detailTooltip" role="tooltip"></div>
+    <script src="sidepanel.js"></script>
+  </body>
+</html>

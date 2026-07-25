@@ -1,9 +1,11 @@
-const DEFAULTS = { enabled: false };
+const DEFAULTS = { enabled: false, panelMode: "overlay" };
 const $ = (selector) => document.querySelector(selector);
 const masterToggle = $("#masterToggle");
 const stateText = $("#stateText");
 const stateHint = $("#stateHint");
 const versionText = $("#versionText");
+const modeButtons = [...document.querySelectorAll("[data-panel-mode]")];
+let currentSettings = { ...DEFAULTS };
 
 versionText.textContent = `v${chrome.runtime.getManifest().version}`;
 
@@ -12,7 +14,10 @@ function paint(settings) {
   document.body.classList.toggle("is-active", active);
   masterToggle.setAttribute("aria-checked", String(active));
   stateText.textContent = active ? "正在检视" : "已静默";
-  stateHint.textContent = active ? "悬停预览，点击即可锁定元素" : "⌘ + E 开关检视";
+  stateHint.textContent = active
+    ? settings.panelMode === "sidebar" ? "信息将在浏览器侧边栏显示" : "悬停预览，点击即可锁定元素"
+    : "⌘ + E 开关检视";
+  modeButtons.forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.panelMode === settings.panelMode)));
 }
 
 function showHint(message, isError = false) {
@@ -40,22 +45,38 @@ function notifyActiveTab(settings) {
   });
 }
 
-function save(patch) {
-  chrome.storage.local.get(DEFAULTS, (settings) => {
-    const next = { ...settings, ...patch };
-    chrome.storage.local.set(next, () => {
-      paint(next);
-      notifyActiveTab(next);
-    });
+function syncSidePanel(settings) {
+  if (!settings.enabled || settings.panelMode !== "sidebar") {
+    chrome.sidePanel?.setOptions({ enabled: false }).catch((error) => showHint(error.message, true));
+    return;
+  }
+  chrome.tabs.query({ active: true, currentWindow: true }, ([tab]) => {
+    if (tab?.windowId == null) return;
+    chrome.sidePanel.setOptions({ path: "sidepanel.html", enabled: true })
+      .then(() => chrome.sidePanel.open({ windowId: tab.windowId }))
+      .catch((error) => showHint(error.message || "无法打开侧边栏", true));
   });
 }
 
-masterToggle.addEventListener("click", () => save({ enabled: masterToggle.getAttribute("aria-checked") !== "true" }));
+function save(patch, userInitiated = false) {
+  currentSettings = { ...currentSettings, ...patch };
+  chrome.storage.local.set(currentSettings);
+  paint(currentSettings);
+  notifyActiveTab(currentSettings);
+  if (userInitiated) syncSidePanel(currentSettings);
+}
+
+masterToggle.addEventListener("click", () => save({ enabled: masterToggle.getAttribute("aria-checked") !== "true" }, true));
+modeButtons.forEach((button) => button.addEventListener("click", () => save({ panelMode: button.dataset.panelMode }, true)));
+
 chrome.storage.local.get(DEFAULTS, (settings) => {
-  paint(settings);
-  if (settings.enabled) notifyActiveTab(settings);
+  currentSettings = { ...DEFAULTS, ...settings };
+  paint(currentSettings);
+  if (currentSettings.enabled) notifyActiveTab(currentSettings);
 });
 chrome.storage.onChanged.addListener((changes, areaName) => {
-  if (areaName !== "local" || !changes.enabled) return;
-  paint({ enabled: changes.enabled.newValue });
+  if (areaName !== "local") return;
+  const patch = Object.fromEntries(Object.entries(changes).map(([key, change]) => [key, change.newValue]));
+  currentSettings = { ...currentSettings, ...patch };
+  paint(currentSettings);
 });

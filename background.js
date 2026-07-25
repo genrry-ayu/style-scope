@@ -1,4 +1,9 @@
-const DEFAULTS = { enabled: false };
+const DEFAULTS = { enabled: false, panelMode: "overlay" };
+const inspectionByTab = new Map();
+
+function inspectionFrameKey(tabId) {
+  return `inspection-frame:${tabId}`;
+}
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.storage.local.get(DEFAULTS, (stored) => chrome.storage.local.set({ ...DEFAULTS, ...stored }));
@@ -15,7 +20,79 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       .catch((error) => sendResponse({ ok: false, error: error?.message || "资源请求失败" }));
     return true;
   }
+  if (message?.type === "style-scope:inspection-update" && sender.tab?.id != null) {
+    const tabId = sender.tab.id;
+    const frameId = sender.frameId ?? 0;
+    if (!inspectionByTab.has(tabId)) inspectionByTab.set(tabId, new Map());
+    const frames = inspectionByTab.get(tabId);
+    if (message.snapshot) frames.set(frameId, { ...message.snapshot, frameId });
+    else frames.delete(frameId);
+    if (!frames.size) inspectionByTab.delete(tabId);
+    if (message.snapshot) chrome.storage.session.set({ [inspectionFrameKey(tabId)]: frameId });
+    else if (!frames.size) chrome.storage.session.remove(inspectionFrameKey(tabId));
+    chrome.runtime.sendMessage({
+      type: "style-scope:sidebar-update",
+      tabId,
+      snapshot: latestInspection(tabId)
+    }).catch(() => {});
+    return;
+  }
+  if (message?.type === "style-scope:get-inspection") {
+    restoreInspection(message.tabId)
+      .then((snapshot) => sendResponse({ snapshot }))
+      .catch(() => sendResponse({ snapshot: null }));
+    return true;
+  }
+  if (message?.type === "style-scope:set-side-panel") {
+    setSidePanelOpen(message.open, message.windowId ?? sender.tab?.windowId)
+      .then(() => sendResponse({ ok: true }))
+      .catch((error) => sendResponse({ ok: false, error: error?.message || "侧边栏操作失败" }));
+    return true;
+  }
 });
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+  inspectionByTab.delete(tabId);
+  chrome.storage.session.remove(inspectionFrameKey(tabId));
+});
+chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
+  if (changeInfo.status !== "loading") return;
+  inspectionByTab.delete(tabId);
+  chrome.storage.session.remove(inspectionFrameKey(tabId));
+  chrome.runtime.sendMessage({ type: "style-scope:sidebar-update", tabId, snapshot: null }).catch(() => {});
+});
+
+function latestInspection(tabId) {
+  const frames = inspectionByTab.get(Number(tabId));
+  if (!frames?.size) return null;
+  return [...frames.values()].sort((left, right) => (right.updatedAt || 0) - (left.updatedAt || 0))[0] || null;
+}
+
+async function restoreInspection(tabId) {
+  const current = latestInspection(tabId);
+  if (current) return current;
+  const key = inspectionFrameKey(tabId);
+  const stored = await chrome.storage.session.get(key);
+  const frameId = stored[key];
+  if (!Number.isInteger(frameId)) return null;
+  const response = await chrome.tabs.sendMessage(Number(tabId), { type: "style-scope:get-inspection-snapshot" }, { frameId });
+  if (!response?.snapshot) return null;
+  if (!inspectionByTab.has(Number(tabId))) inspectionByTab.set(Number(tabId), new Map());
+  const snapshot = { ...response.snapshot, frameId };
+  inspectionByTab.get(Number(tabId)).set(frameId, snapshot);
+  return snapshot;
+}
+
+async function setSidePanelOpen(open, windowId) {
+  if (!chrome.sidePanel) throw new Error("当前浏览器不支持扩展侧边栏");
+  if (!open) {
+    await chrome.sidePanel.setOptions({ enabled: false });
+    return;
+  }
+  if (windowId == null) throw new Error("无法定位当前浏览器窗口");
+  await chrome.sidePanel.setOptions({ path: "sidepanel.html", enabled: true });
+  await chrome.sidePanel.open({ windowId });
+}
 
 function bytesToBase64(buffer) {
   const bytes = new Uint8Array(buffer);

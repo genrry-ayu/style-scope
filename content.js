@@ -3,7 +3,7 @@
   globalThis.__styleScopeLoaded = true;
 
   const ROOT_ID = "__style_scope_root__";
-  const DEFAULTS = { enabled: false };
+  const DEFAULTS = { enabled: false, panelMode: "overlay" };
   let settings = { ...DEFAULTS };
   let root;
   let hoverPreview;
@@ -34,8 +34,6 @@
   let cachedStyleRules = [];
   let cachedStyleSheetCount = -1;
   let matchedDeclarationsCache = new WeakMap();
-  let tokenAnalysis = null;
-  let tokenLookupJob = 0;
   let currentDetailItem = null;
 
   const typographyProps = ["font-family", "font-size", "font-weight", "font-style", "line-height", "letter-spacing", "text-transform", "text-decoration-line", "text-decoration-color", "text-decoration-style", "color", "text-shadow", "white-space", "word-break"];
@@ -85,6 +83,7 @@
     const host = document.createElement("div");
     host.id = ROOT_ID;
     host.setAttribute("aria-hidden", "true");
+    host.style.pointerEvents = "none";
     (document.documentElement || document.body).append(host);
     // 演示页开放 Shadow DOM 便于真实交互验收；扩展环境仍保持隔离。
     root = host.attachShadow({ mode: chrome.runtime?.id ? "closed" : "open" });
@@ -242,21 +241,21 @@
     return formatted;
   }
   function readableName(prop) { return prop.replace(/^font-/, "").replace(/^background-/, "bg-").replace(/-([a-z])/g, (_, letter) => letter.toUpperCase()); }
-  function row(prop, computed) {
+  function row(prop, computed, element) {
     const value = computed.getPropertyValue(prop).trim();
     const colour = ["color", "background-color", "text-decoration-color"].includes(prop) && colourDetails(value);
     const name = readableName(prop);
     const hasColour = colourKeys(value).size > 0;
+    const detail = hasColour ? detailFor(value, tokenInfoFor(element, prop, value, computed)) : formatColourValue(value);
     const renderedValue = colour
       ? `<i class="chip" style="background:${value}"></i>${colour.hex} <span class="alpha">${colour.alpha.replace("α ", "")}</span>`
       : escapeMarkup(formatColourValue(clean(value)));
-    const tokenData = hasColour ? ` data-token-prop="${escapeMarkup(prop)}" data-token-value="${escapeMarkup(value)}"` : "";
-    return `<div class="row"><span class="key" data-detail="${escapeMarkup(name)}">${escapeMarkup(name)}</span><span class="value${colour ? " colour" : ""}" data-detail="${escapeMarkup(formatColourValue(value))}"${tokenData}>${renderedValue}</span></div>`;
+    return `<div class="row"><span class="key" data-detail="${escapeMarkup(name)}">${escapeMarkup(name)}</span><span class="value${colour ? " colour" : ""}" data-detail="${escapeMarkup(detail)}">${renderedValue}</span></div>`;
   }
   function selectorFor(element) {
-    const tag = element.tagName.toLowerCase();
-    if (element.id) return `${tag}<b>#${CSS.escape(element.id)}</b>`;
-    const classes = [...element.classList].slice(0, 2).map((name) => `.${CSS.escape(name)}`).join("");
+    const tag = escapeMarkup(element.tagName.toLowerCase());
+    if (element.id) return `${tag}<b>#${escapeMarkup(CSS.escape(element.id))}</b>`;
+    const classes = [...element.classList].slice(0, 2).map((name) => `.${escapeMarkup(CSS.escape(name))}`).join("");
     return `${tag}${classes ? `<b>${classes}</b>` : ""}`;
   }
   function resourceFor(element) {
@@ -301,6 +300,14 @@
     const bytes = new Uint8Array(binary.length);
     for (let index = 0; index < binary.length; index += 1) bytes[index] = binary.charCodeAt(index);
     return bytes;
+  }
+  function bytesToBase64(bytes) {
+    const chunkSize = 0x8000;
+    let binary = "";
+    for (let offset = 0; offset < bytes.length; offset += chunkSize) {
+      binary += String.fromCharCode(...bytes.subarray(offset, offset + chunkSize));
+    }
+    return btoa(binary);
   }
   function mimeFromSource(source) {
     const extension = new URL(source, document.baseURI).pathname.split(".").pop()?.toLowerCase();
@@ -352,8 +359,10 @@
     const source = await resource.blob();
     const mime = String(source?.type || "").split(";")[0].toLowerCase();
     if (!mime.startsWith("image/")) throw copyError("format", "无法确认资源的原始图片格式");
-    const text = mime === "image/svg+xml" ? await source.text() : "";
-    return { source, mime, text };
+    const bytes = new Uint8Array(await source.arrayBuffer());
+    const stableSource = new Blob([bytes], { type: mime });
+    const text = mime === "image/svg+xml" ? new TextDecoder().decode(bytes) : "";
+    return { source: stableSource, mime, text, base64: bytesToBase64(bytes) };
   }
   function clipboardItemFor(payload) {
     if (!navigator.clipboard?.write || typeof ClipboardItem === "undefined") {
@@ -381,13 +390,40 @@
   function resourceButton() {
     return panel?.querySelector("[data-copy-resource]");
   }
+  function sidebarResource() {
+    if (!selectedResource) return null;
+    return {
+      state: selectedResource.state,
+      label: selectedResource.label,
+      description: selectedResource.description,
+      error: selectedResource.error?.message || "",
+      payload: selectedResource.payload ? {
+        mime: selectedResource.payload.mime,
+        text: selectedResource.payload.text,
+        base64: selectedResource.payload.base64
+      } : null
+    };
+  }
+  function inspectionSnapshot() {
+    return inspected && panel ? {
+      html: panel.innerHTML,
+      resource: sidebarResource(),
+      updatedAt: Date.now()
+    } : null;
+  }
+  function publishInspection() {
+    if (!chrome.runtime?.sendMessage || settings.panelMode !== "sidebar") return;
+    const snapshot = inspectionSnapshot();
+    chrome.runtime.sendMessage({ type: "style-scope:inspection-update", snapshot }).catch?.(() => {});
+  }
   function syncResourceButton(resource) {
     if (selectedResource !== resource) return;
     const button = resourceButton();
-    if (!button) return;
+    if (!button) { publishInspection(); return; }
     if (resource.state === "loading") {
       button.textContent = "PREPARING…";
       button.disabled = true;
+      publishInspection();
       return;
     }
     if (resource.state === "ready") {
@@ -395,6 +431,7 @@
       button.title = `复制${resource.description}到剪贴板`;
       button.disabled = false;
       button.classList.remove("is-failed");
+      publishInspection();
       return;
     }
     if (resource.state === "error") {
@@ -402,6 +439,7 @@
       button.title = resource.error?.message || "资源准备失败，点击重试";
       button.disabled = false;
       button.classList.add("is-failed");
+      publishInspection();
     }
   }
   function prepareResource(resource) {
@@ -482,22 +520,26 @@
   }
   function contentFor(element, rect, computed, childGap) {
     const sets = [["排版 / TYPE", typographyProps], ["外观 / LOOK", appearanceProps]];
-    const groups = sets.map(([title, props]) => `<div class="group"><div class="group-title">${title}</div>${props.map((prop) => row(prop, computed)).join("")}</div>`).join("");
-    const text = sampleText(element);
+    const groups = sets.map(([title, props]) => `<div class="group"><div class="group-title">${title}</div>${props.map((prop) => row(prop, computed, element)).join("")}</div>`).join("");
+    const text = escapeMarkup(sampleText(element));
     const insets = [["↑ 上", computed.paddingTop], ["→ 右", computed.paddingRight], ["↓ 下", computed.paddingBottom], ["← 左", computed.paddingLeft]];
-    const insetGrid = insets.map(([direction, value]) => `<div class="inset"><span>${direction}</span><b>${value}</b></div>`).join("");
+    const insetGrid = insets.map(([direction, value]) => `<div class="inset"><span>${direction}</span><b>${escapeMarkup(value)}</b></div>`).join("");
     const boxHint = childGap ? `content → 边缘 · gap ${Math.round(childGap.value)}px` : "content → 边缘";
     const state = locked ? "LOCKED · CLICKED" : "LIVE · HOVER";
     const resourceAction = selectedResource
       ? `<button class="resource-copy" type="button" data-copy-resource${selectedResource.state === "loading" ? " disabled" : ""} title="复制${selectedResource.description}到剪贴板">${selectedResource.state === "loading" ? "PREPARING…" : selectedResource.label}</button>`
       : "";
-    const classes = [...element.classList].slice(0, 8);
+    const classes = [...element.classList].slice(0, 8).map(escapeMarkup);
     return `<div class="panel-head"><div class="kicker"><span>${state}</span><span>${element.tagName.toLowerCase()} · ${element.childElementCount} children</span></div><div class="selector-line"><div class="selector">${selectorFor(element)}</div>${resourceAction}</div><div class="meta">${Math.round(rect.width)} × ${Math.round(rect.height)} px&nbsp;&nbsp; · &nbsp;&nbsp;${classes.length ? `.${classes.join(".")}${element.classList.length > classes.length ? "…" : ""}` : "no class"}</div></div><div class="groups">${groups}</div><div class="box-model"><div class="box-title"><span>内容内距 / TEXT INSETS</span><span class="box-size">${boxHint}</span></div><div class="content-sample"><b>CONTENT&nbsp;&nbsp;</b>${text}</div><div class="inset-grid">${insetGrid}</div><span class="copy-note">⌘ + E 开关检视 · Esc 退出 · 点击重新选中</span></div>`;
   }
   function place(rect, computed, childGap) {
     if (!overlay || !panel || !inspected) return;
     overlay.classList.toggle("is-locked", locked);
     paintBoxModel(rect, computed, childGap);
+    if (settings.panelMode === "sidebar") {
+      panel.style.display = "none";
+      return;
+    }
     panel.style.display = "block";
     const gap = 14;
     const edge = 8;
@@ -611,22 +653,28 @@
   function setInspectionEnabled(enabled) {
     apply({ ...settings, enabled });
     chrome.storage.local.set({ enabled });
+    if (settings.panelMode === "sidebar") {
+      chrome.runtime.sendMessage({ type: "style-scope:set-side-panel", open: enabled }).catch?.(() => {});
+    }
     if (!enabled) return;
     const target = document.elementFromPoint(cursor.x, cursor.y);
     if (target) inspect(target);
+  }
+  function renderInspection() {
+    if (!inspected || !panel) { publishInspection(); return; }
+    const rect = inspected.getBoundingClientRect();
+    const computed = getComputedStyle(inspected);
+    const childGap = measureChildGap(inspected, computed);
+    panel.innerHTML = contentFor(inspected, rect, computed, childGap);
+    place(rect, computed, childGap);
+    publishInspection();
   }
   function inspect(element) {
     if (!isActive() || !element || element.id === ROOT_ID || element.closest?.(`#${ROOT_ID}`)) return;
     inspected = element;
     previewedTarget = null;
     selectedResource = resourceFor(element);
-    const rect = element.getBoundingClientRect();
-    const computed = getComputedStyle(element);
-    const childGap = measureChildGap(element, computed);
-    tokenAnalysis = { element, computed, details: new Map() };
-    cancelTokenLookup();
-    panel.innerHTML = contentFor(element, rect, computed, childGap);
-    place(rect, computed, childGap);
+    renderInspection();
     if (selectedResource && locked) prepareResource(selectedResource);
   }
   function hoverName(element) {
@@ -721,50 +769,16 @@
     if (rect.right > window.innerWidth - 8) detailTooltip.style.left = `${Math.max(8, event.clientX - rect.width - gap)}px`;
     if (rect.bottom > window.innerHeight - 8) detailTooltip.style.top = `${Math.max(8, event.clientY - rect.height - gap)}px`;
   }
-  function cancelTokenLookup() {
-    if (!tokenLookupJob) return;
-    if ("cancelIdleCallback" in window) window.cancelIdleCallback(tokenLookupJob);
-    else window.clearTimeout(tokenLookupJob);
-    tokenLookupJob = 0;
-  }
-  function scheduleTokenLookup(item) {
-    if (!item?.dataset.tokenProp || !tokenAnalysis) return;
-    const key = `${item.dataset.tokenProp}\u0000${item.dataset.tokenValue}`;
-    const cached = tokenAnalysis.details.get(key);
-    if (cached) {
-      item.dataset.detail = cached;
-      return;
-    }
-    cancelTokenLookup();
-    const analysis = tokenAnalysis;
-    const run = () => {
-      tokenLookupJob = 0;
-      if (tokenAnalysis !== analysis) return;
-      const info = tokenInfoFor(analysis.element, item.dataset.tokenProp, item.dataset.tokenValue, analysis.computed);
-      const detail = detailFor(item.dataset.tokenValue, info);
-      analysis.details.set(key, detail);
-      if (!item.isConnected) return;
-      item.dataset.detail = detail;
-      if (currentDetailItem === item && detailTooltip?.style.display === "block") detailTooltip.textContent = detail;
-    };
-    tokenLookupJob = "requestIdleCallback" in window
-      ? window.requestIdleCallback(run, { timeout: 120 })
-      : window.setTimeout(run, 0);
-  }
   function moveDetail(event) {
     const item = event.target.closest?.("[data-detail]");
     if (!item || !detailTooltip) { hideDetail(); return; }
-    if (currentDetailItem !== item) {
-      currentDetailItem = item;
-      scheduleTokenLookup(item);
-    }
+    currentDetailItem = item;
     if (detailTooltip.textContent !== item.dataset.detail) detailTooltip.textContent = item.dataset.detail;
     detailTooltip.style.display = "block";
     placeDetail(event);
   }
   function hideDetail() {
     currentDetailItem = null;
-    cancelTokenLookup();
     if (detailTooltip) detailTooltip.style.display = "none";
   }
   function cancelPointerWork() {
@@ -823,14 +837,13 @@
   }
   function hide() {
     cancelPointerWork();
-    cancelTokenLookup();
     if (placementRaf) cancelAnimationFrame(placementRaf);
     placementRaf = 0;
     locked = false;
     inspected = null;
-    tokenAnalysis = null;
     selectedResource = null;
     [hoverPreview, distanceReadout, distanceXGuide, distanceYGuide, marginLayer, overlay, borderLayer, paddingLayer, contentLayer, childGapLayer, panel, detailTooltip].forEach((layer) => { if (layer) layer.style.display = "none"; });
+    publishInspection();
   }
   document.addEventListener("mousemove", onMove, true);
   document.addEventListener("click", onClick, true);
@@ -856,10 +869,24 @@
   window.addEventListener("blur", () => { commandDown = false; });
   window.addEventListener("scroll", () => { schedulePlacement(); hideHoverPreview(); }, true);
   window.addEventListener("resize", () => { schedulePlacement(); hideHoverPreview(); });
-  function apply(next) { settings = { ...DEFAULTS, ...next }; if (isActive()) createUI(); else hide(); }
-  chrome.runtime.onMessage.addListener((message) => {
+  function apply(next) {
+    const previousMode = settings.panelMode;
+    settings = { ...DEFAULTS, ...next };
+    if (!isActive()) { hide(); return; }
+    createUI();
+    if (inspected && previousMode !== settings.panelMode) renderInspection();
+    else if (settings.panelMode === "sidebar") publishInspection();
+    else if (panel && inspected) panel.style.display = "block";
+  }
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     if (message?.type === "style-scope:update") {
       apply(message.settings);
+    }
+    if (message?.type === "style-scope:retry-resource" && selectedResource) {
+      prepareResource(selectedResource);
+    }
+    if (message?.type === "style-scope:get-inspection-snapshot") {
+      sendResponse({ snapshot: settings.panelMode === "sidebar" ? inspectionSnapshot() : null });
     }
   });
   chrome.storage.onChanged?.addListener((changes, areaName) => {

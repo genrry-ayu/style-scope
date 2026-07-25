@@ -30,6 +30,17 @@
         </button>
       </section>
 
+      <section class="mode-plate" aria-labelledby="mode-heading">
+        <div>
+          <p class="eyebrow" id="mode-heading">Panel placement</p>
+          <strong>信息面板位置</strong>
+        </div>
+        <div class="mode-selector" role="group" aria-label="信息面板位置">
+          <button type="button" data-panel-mode="overlay" aria-pressed="true"><span class="mode-icon is-overlay" aria-hidden="true"></span>浮层</button>
+          <button type="button" data-panel-mode="sidebar" aria-pressed="false"><span class="mode-icon is-sidebar" aria-hidden="true"></span>侧边栏</button>
+        </div>
+      </section>
+
       <footer><span><kbd>CLICK</kbd> 锁定元素</span><span>⌘ + E 切换 · ESC 退出</span></footer>
     </main>
     <script src="popup.js"></script>
