@@ -13,10 +13,11 @@ function paint(settings) {
   const active = settings.enabled;
   document.body.classList.toggle("is-active", active);
   masterToggle.setAttribute("aria-checked", String(active));
-  stateText.textContent = active ? "正在检视" : "已静默";
+  masterToggle.setAttribute("aria-label", active ? "关闭元素检视" : "开启元素检视");
+  stateText.textContent = "元素检视";
   stateHint.textContent = active
-    ? settings.panelMode === "sidebar" ? "信息将在浏览器侧边栏显示" : "悬停预览，点击即可锁定元素"
-    : "⌘ + E 开关检视";
+    ? settings.panelMode === "sidebar" ? "已开启 · 侧边栏" : "已开启 · 浮层"
+    : "已关闭";
   modeButtons.forEach((button) => button.setAttribute("aria-pressed", String(button.dataset.panelMode === settings.panelMode)));
 }
 
@@ -39,7 +40,7 @@ function notifyActiveTab(settings) {
           return;
         }
         chrome.tabs.sendMessage(tab.id, message, () => void chrome.runtime.lastError);
-        showHint("已接入当前页面，悬停预览、点击选中元素");
+        showHint("已接入当前页面");
       });
     });
   });

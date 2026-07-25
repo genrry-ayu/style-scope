@@ -9,39 +9,36 @@
   <body>
     <main class="scope-shell">
       <header class="masthead">
-        <div class="brand-lockup" aria-label="Style Scope">
-          <span class="scope-mark" aria-hidden="true"><i></i><b></b></span>
-          <div>
-            <p class="eyebrow">Web element observatory</p>
-            <h1>STYLE <em>SCOPE</em></h1>
-          </div>
+        <div class="brand-lockup">
+          <span class="scope-mark" aria-hidden="true"><i></i></span>
+          <h1>Style Scope</h1>
         </div>
         <span class="version" id="versionText"></span>
       </header>
 
       <section class="control-plate" aria-labelledby="control-heading">
-        <div class="control-copy">
-          <p class="eyebrow" id="control-heading">Inspection status</p>
-          <div class="state-line"><span class="status-orb" aria-hidden="true"></span><strong id="stateText">已静默</strong></div>
-          <p id="stateHint">悬停预览，点击即可锁定元素</p>
+        <h2 id="control-heading">Inspection</h2>
+        <div class="setting-row">
+          <div class="control-copy">
+            <div class="state-line"><span class="status-orb" aria-hidden="true"></span><strong id="stateText">元素检视</strong></div>
+            <p id="stateHint">已关闭</p>
+          </div>
+          <button id="masterToggle" class="master-toggle" type="button" role="switch" aria-checked="false" aria-label="开启元素检视">
+            <span class="toggle-track"><span class="toggle-knob"></span></span>
+          </button>
         </div>
-        <button id="masterToggle" class="master-toggle" type="button" role="switch" aria-checked="false" aria-label="开启样式检视">
-          <span class="toggle-track"><span class="toggle-knob"></span></span>
-        </button>
       </section>
 
       <section class="mode-plate" aria-labelledby="mode-heading">
-        <div>
-          <p class="eyebrow" id="mode-heading">Panel placement</p>
-          <strong>信息面板位置</strong>
+        <div class="section-heading">
+          <h2 id="mode-heading">Panel</h2>
+          <span>展示位置</span>
         </div>
         <div class="mode-selector" role="group" aria-label="信息面板位置">
           <button type="button" data-panel-mode="overlay" aria-pressed="true"><span class="mode-icon is-overlay" aria-hidden="true"></span>浮层</button>
           <button type="button" data-panel-mode="sidebar" aria-pressed="false"><span class="mode-icon is-sidebar" aria-hidden="true"></span>侧边栏</button>
         </div>
       </section>
-
-      <footer><span><kbd>CLICK</kbd> 锁定元素</span><span>⌘ + E 切换 · ESC 退出</span></footer>
     </main>
     <script src="popup.js"></script>
   </body>
