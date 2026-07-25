@@ -40,12 +40,6 @@
 
   const typographyProps = ["font-family", "font-size", "font-weight", "font-style", "line-height", "letter-spacing", "text-transform", "text-decoration-line", "text-decoration-color", "text-decoration-style", "color", "text-shadow", "white-space", "word-break"];
   const appearanceProps = ["background-color", "background-image", "opacity", "border-top", "border-right", "border-bottom", "border-left", "border-radius", "outline", "box-shadow", "filter", "mix-blend-mode", "visibility"];
-  // 已从 Aurora 样式库确认的固定色；其余颜色仅在页面源码可追溯到 CSS token 时展示，避免按色相猜测。
-  const AURORA_COLOUR_TOKENS = Object.freeze({
-    "#FFFFFF@100": ["token/static/white"],
-    "#000000@100": ["token/static/black"]
-  });
-
   const styles = `
     :host { all: initial; }
     * { box-sizing: border-box; }
@@ -222,24 +216,10 @@
     }
     return values;
   }
-  function customPropertyColourIndex(element, computed = getComputedStyle(element)) {
-    const index = new Map();
-    for (let position = 0; position < computed.length; position += 1) {
-      const name = computed[position];
-      if (!name?.startsWith("--")) continue;
-      const resolved = resolveVariable(element, name, new Set(), computed);
-      colourKeys(resolved).forEach((key) => {
-        if (!index.has(key)) index.set(key, new Set());
-        index.get(key).add(name);
-      });
-    }
-    return index;
-  }
-  function tokenInfoFor(element, prop, computedValue, customPropertyIndex, computed = getComputedStyle(element)) {
+  function tokenInfoFor(element, prop, computedValue, computed = getComputedStyle(element)) {
     const expected = colourKeys(computedValue);
-    if (!expected.size) return { source: [], candidates: [] };
+    if (!expected.size) return { source: [] };
     const sourceNames = new Set();
-    const candidateNames = new Set([...expected].flatMap((key) => AURORA_COLOUR_TOKENS[key] || []));
     declaredValuesFor(element, prop).forEach((value) => {
       variablesIn(value).forEach((name) => {
         const resolved = resolveVariable(element, name, new Set(), computed);
@@ -247,9 +227,7 @@
         if ([...resolvedKeys].some((key) => expected.has(key))) sourceNames.add(name);
       });
     });
-    expected.forEach((key) => customPropertyIndex.get(key)?.forEach((name) => candidateNames.add(name)));
-    sourceNames.forEach((name) => candidateNames.delete(name));
-    return { source: [...sourceNames], candidates: [...candidateNames] };
+    return { source: [...sourceNames] };
   }
   function displayTokenName(token) {
     if (!token.startsWith("--")) return token;
@@ -260,9 +238,6 @@
     const formatted = formatColourValue(value);
     if (tokenInfo.source.length) {
       return `SOURCE TOKEN\n${tokenInfo.source.map(displayTokenName).join("\n")}\n${formatted}`;
-    }
-    if (tokenInfo.candidates.length) {
-      return `MATCHING TOKENS · ${tokenInfo.candidates.length}\n${tokenInfo.candidates.map(displayTokenName).join("\n")}\n${formatted}`;
     }
     return formatted;
   }
@@ -352,7 +327,7 @@
   }
   async function fetchImage(source) {
     const absoluteSource = new URL(source, document.baseURI).href;
-    if (!/^https?:/i.test(absoluteSource) || !chrome.runtime?.sendMessage) return fetchImageDirect(absoluteSource);
+    if (/^data:/i.test(absoluteSource) || !chrome.runtime?.sendMessage) return fetchImageDirect(absoluteSource);
     let response;
     try {
       response = await chrome.runtime.sendMessage({ type: "style-scope:fetch-image", url: absoluteSource });
@@ -636,7 +611,7 @@
     const rect = element.getBoundingClientRect();
     const computed = getComputedStyle(element);
     const childGap = measureChildGap(element, computed);
-    tokenAnalysis = { element, computed, colourIndex: null, details: new Map() };
+    tokenAnalysis = { element, computed, details: new Map() };
     cancelTokenLookup();
     panel.innerHTML = contentFor(element, rect, computed, childGap);
     place(rect, computed, childGap);
@@ -753,8 +728,7 @@
     const run = () => {
       tokenLookupJob = 0;
       if (tokenAnalysis !== analysis) return;
-      analysis.colourIndex ||= customPropertyColourIndex(analysis.element, analysis.computed);
-      const info = tokenInfoFor(analysis.element, item.dataset.tokenProp, item.dataset.tokenValue, analysis.colourIndex, analysis.computed);
+      const info = tokenInfoFor(analysis.element, item.dataset.tokenProp, item.dataset.tokenValue, analysis.computed);
       const detail = detailFor(item.dataset.tokenValue, info);
       analysis.details.set(key, detail);
       if (!item.isConnected) return;

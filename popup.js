@@ -3,6 +3,9 @@ const $ = (selector) => document.querySelector(selector);
 const masterToggle = $("#masterToggle");
 const stateText = $("#stateText");
 const stateHint = $("#stateHint");
+const versionText = $("#versionText");
+
+versionText.textContent = `v${chrome.runtime.getManifest().version}`;
 
 function paint(settings) {
   const active = settings.enabled;
@@ -51,4 +54,8 @@ masterToggle.addEventListener("click", () => save({ enabled: masterToggle.getAtt
 chrome.storage.local.get(DEFAULTS, (settings) => {
   paint(settings);
   if (settings.enabled) notifyActiveTab(settings);
+});
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName !== "local" || !changes.enabled) return;
+  paint({ enabled: changes.enabled.newValue });
 });
