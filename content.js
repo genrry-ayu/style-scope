@@ -110,6 +110,41 @@
   }
 
   function clean(value) { return !value || value === "normal" || value === "none" || value === "auto" ? "—" : value.replace(/,\s*/g, ", "); }
+  function primaryFontFamily(value) {
+    const source = String(value || "").trim();
+    let family = "";
+    let quote = "";
+    let escaped = false;
+    for (const character of source) {
+      if (escaped) {
+        family += character;
+        escaped = false;
+        continue;
+      }
+      if (character === "\\") {
+        family += character;
+        escaped = true;
+        continue;
+      }
+      if (quote) {
+        family += character;
+        if (character === quote) quote = "";
+        continue;
+      }
+      if (character === "\"" || character === "'") {
+        quote = character;
+        family += character;
+        continue;
+      }
+      if (character === ",") break;
+      family += character;
+    }
+    family = family.trim();
+    if ((family.startsWith("\"") && family.endsWith("\"")) || (family.startsWith("'") && family.endsWith("'"))) {
+      family = family.slice(1, -1);
+    }
+    return family || "—";
+  }
   function escapeMarkup(value) { return String(value).replace(/[&<>"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" })[character]); }
   function colourDetails(value) {
     const source = String(value || "").trim();
@@ -243,13 +278,16 @@
   function readableName(prop) { return prop.replace(/^font-/, "").replace(/^background-/, "bg-").replace(/-([a-z])/g, (_, letter) => letter.toUpperCase()); }
   function row(prop, computed, element) {
     const value = computed.getPropertyValue(prop).trim();
+    const displayedValue = prop === "font-family" ? primaryFontFamily(value) : clean(value);
     const colour = ["color", "background-color", "text-decoration-color"].includes(prop) && colourDetails(value);
     const name = readableName(prop);
     const hasColour = colourKeys(value).size > 0;
-    const detail = hasColour ? detailFor(value, tokenInfoFor(element, prop, value, computed)) : formatColourValue(value);
+    const detail = prop === "font-family"
+      ? displayedValue
+      : hasColour ? detailFor(value, tokenInfoFor(element, prop, value, computed)) : formatColourValue(value);
     const renderedValue = colour
       ? `<i class="chip" style="background:${value}"></i>${colour.hex} <span class="alpha">${colour.alpha.replace("α ", "")}</span>`
-      : escapeMarkup(formatColourValue(clean(value)));
+      : escapeMarkup(formatColourValue(displayedValue));
     return `<div class="row"><span class="key" data-detail="${escapeMarkup(name)}">${escapeMarkup(name)}</span><span class="value${colour ? " colour" : ""}" data-detail="${escapeMarkup(detail)}">${renderedValue}</span></div>`;
   }
   function selectorFor(element) {
@@ -830,6 +868,11 @@
     if (!target) return;
     event.preventDefault();
     event.stopPropagation();
+    if (settings.panelMode === "sidebar") {
+      chrome.runtime
+        .sendMessage({ type: "style-scope:set-side-panel", open: true })
+        .catch(() => {});
+    }
     locked = true;
     hideHoverPreview();
     cursor = { x: event.clientX, y: event.clientY };
