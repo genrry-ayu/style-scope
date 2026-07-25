@@ -36,8 +36,6 @@
   let matchedDeclarationsCache = new WeakMap();
   let currentDetailItem = null;
 
-  const typographyProps = ["font-family", "font-size", "font-weight", "font-style", "line-height", "letter-spacing", "text-transform", "text-decoration-line", "text-decoration-color", "text-decoration-style", "color", "text-shadow", "white-space", "word-break"];
-  const appearanceProps = ["background-color", "background-image", "opacity", "border-top", "border-right", "border-bottom", "border-left", "border-radius", "outline", "box-shadow", "filter", "mix-blend-mode", "visibility"];
   const styles = `
     :host { all: initial; }
     * { box-sizing: border-box; }
@@ -70,12 +68,11 @@
     .edge-label, .content-label { position:absolute; display:none; z-index:1; padding:1px 3px; border:1px solid rgba(17,18,17,.35); background:rgba(17,18,17,.68); box-shadow:0 1px 0 rgba(255,255,255,.12); color:#f6eedf; font-size:8px; font-weight:700; line-height:1.1; letter-spacing:.04em; white-space:nowrap; }
     .edge-label[data-edge="top"] { left:50%; transform:translateX(-50%); }.edge-label[data-edge="bottom"] { bottom:0; left:50%; transform:translateX(-50%); }.edge-label[data-edge="left"] { top:50%; left:0; transform:translateY(-50%); }.edge-label[data-edge="right"] { top:50%; right:0; transform:translateY(-50%); }
     .content-label { top:2px; left:2px; color:#dceafa; }
-    #panel { position:fixed; z-index:2147483647; display:none; width:420px; max-height:calc(100vh - 16px); overflow-x:hidden; overflow-y:auto; pointer-events:auto; border:1px solid rgba(244,187,76,.78); background:#151615; box-shadow:0 18px 46px rgba(0,0,0,.42), 0 0 0 1px rgba(255,246,224,.08); }
+    #panel { position:fixed; z-index:2147483647; display:none; width:320px; max-height:calc(100vh - 16px); overflow-x:hidden; overflow-y:auto; pointer-events:auto; border:1px solid #464646; border-radius:6px; background:#2c2c2c; box-shadow:0 12px 32px rgba(0,0,0,.34); color:#f5f5f5; font-family:Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
     #panel::before { display:none; }
-    .panel-head, .group, .box-model { position:relative; }.panel-head { padding:14px 16px 13px; border-bottom:1px solid rgba(255,255,255,.13); background:#1b1c1b; }.kicker { display:flex; align-items:center; justify-content:space-between; margin-bottom:8px; color:#f4bb4c; font-size:12px; font-weight:700; letter-spacing:.12em; }.kicker span:last-child { color:#aaa398; font-size:12px; }.selector-line { display:flex; align-items:center; gap:10px; min-width:0; }.selector { min-width:0; overflow:hidden; color:#f7f0e2; font-size:14px; line-height:1.25; white-space:nowrap; text-overflow:ellipsis; }.selector b { color:#f4bb4c; font-weight:500; }.resource-copy { flex:none; padding:6px 8px; cursor:pointer; color:#f7d881; border:1px solid rgba(244,187,76,.72); border-radius:2px; background:#201d15; font:700 10px/1 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; letter-spacing:.07em; white-space:nowrap; }.resource-copy:hover, .resource-copy:focus-visible { outline:none; color:#1a1710; border-color:#f4bb4c; background:#f4bb4c; }.resource-copy:disabled { cursor:progress; opacity:.58; }.resource-copy.is-copied { color:#b8f2e8; border-color:rgba(104,205,194,.85); background:#122421; }.resource-copy.is-failed { color:#ffad9d; border-color:rgba(238,120,102,.85); background:#2a1715; }.meta { margin-top:8px; color:#b5aea0; font-size:12px; line-height:1.25; }
-    .groups { display:grid; grid-template-columns:1fr 1fr; }.group { min-width:0; padding:13px 14px 12px; border-bottom:1px solid rgba(255,255,255,.1); }.group:first-child { border-right:1px solid rgba(255,255,255,.1); }.group-title { margin-bottom:9px; color:#f4bb4c; font-size:12px; font-weight:700; letter-spacing:.12em; }.row { position:relative; display:grid; grid-template-columns:minmax(84px,.95fr) minmax(0,1.2fr); gap:8px; align-items:baseline; padding:3px 0; font-size:12px; line-height:1.2; }.key, .value { cursor:help; }.key { overflow:hidden; color:#aaa49a; text-overflow:ellipsis; white-space:nowrap; }.value { overflow:hidden; color:#e3ddd2; text-align:right; text-overflow:ellipsis; white-space:nowrap; }.value.colour { overflow:visible; color:#f2dfb4; }.row:hover .key { color:#f4bb4c; }.value .chip { display:inline-block; width:9px; height:9px; margin-right:5px; vertical-align:-1px; border:1px solid rgba(255,255,255,.25); border-radius:50%; }.alpha { color:#a99f8d; }
-    .box-model { padding:14px; border-bottom:1px solid rgba(255,255,255,.1); }.box-title { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px; color:#f4bb4c; font-size:12px; font-weight:700; letter-spacing:.12em; }.box-size { color:#bab3a6; font-size:12px; font-weight:400; letter-spacing:0; }.content-sample { overflow:hidden; margin:0 0 10px; padding:9px 11px; color:#ded6c7; border-left:2px solid rgba(100,188,174,.9); background:#17211f; font-size:12px; line-height:1.3; text-overflow:ellipsis; white-space:nowrap; }.content-sample b { color:#82c5b7; font-size:12px; font-weight:700; letter-spacing:.08em; }.inset-grid { display:grid; grid-template-columns:1fr 1fr; gap:7px; }.inset { display:flex; align-items:baseline; justify-content:space-between; padding:8px 9px; border:1px solid rgba(100,188,174,.36); background:#16201e; }.inset span { color:#9ca59f; font-size:12px; letter-spacing:.06em; }.inset b { color:#e8e0d3; font-size:13px; font-weight:500; }.copy-note { display:block; margin-top:11px; color:#989289; font-size:10px; text-align:right; }
-    #detail-tooltip { position:fixed; z-index:2147483647; display:none; max-width:min(360px, calc(100vw - 24px)); padding:7px 9px; pointer-events:none; border:1px solid rgba(244,187,76,.64); background:#0e0f0e; box-shadow:0 7px 16px rgba(0,0,0,.25); color:#f4ead9; font-size:12px; line-height:1.4; white-space:pre-line; overflow-wrap:anywhere; }
+    .panel-head { padding:12px 12px 10px; border-bottom:1px solid #444; }.element-state { display:flex; align-items:center; gap:6px; margin-bottom:8px; color:#aaa; font-size:10px; line-height:1; }.element-state span { width:6px; height:6px; border:1px solid #8a8a8a; border-radius:50%; }.element-state span.is-locked { border-color:#0d99ff; background:#0d99ff; }.element-state b { margin-left:auto; color:#8f8f8f; font:500 9px/1 ui-monospace, SFMono-Regular, Menlo, monospace; text-transform:uppercase; }.selector-line { display:flex; align-items:center; gap:8px; min-width:0; }.selector { min-width:0; overflow:hidden; color:#f2f2f2; font:500 12px/1.25 ui-monospace, SFMono-Regular, Menlo, monospace; text-overflow:ellipsis; white-space:nowrap; }.selector b { color:#53b7ff; font-weight:500; }.text-preview { overflow:hidden; margin-top:8px; color:#a8a8a8; font-size:11px; line-height:1.3; text-overflow:ellipsis; white-space:nowrap; }.resource-copy { flex:none; height:24px; padding:0 7px; cursor:pointer; color:#f2f2f2; border:1px solid #545454; border-radius:4px; background:#383838; font:500 9px/1 ui-monospace, SFMono-Regular, Menlo, monospace; white-space:nowrap; }.resource-copy:hover, .resource-copy:focus-visible { outline:none; border-color:#0d99ff; background:#3d3d3d; }.resource-copy:disabled { cursor:progress; opacity:.55; }.resource-copy.is-copied { color:#fff; border-color:#0d99ff; background:#0d99ff; }.resource-copy.is-failed { color:#ffb4ab; border-color:#b95f56; background:#4a2d2a; }
+    .property-section { border-bottom:1px solid #444; }.property-section summary { display:flex; align-items:center; min-height:34px; padding:0 12px; cursor:pointer; list-style:none; color:#f2f2f2; font-size:11px; font-weight:600; user-select:none; }.property-section summary::-webkit-details-marker { display:none; }.property-section summary::before { width:0; height:0; margin-right:8px; content:""; border-top:4px solid transparent; border-bottom:4px solid transparent; border-left:5px solid #aaa; transform:rotate(90deg); transition:transform .12s ease; }.property-section:not([open]) summary::before { transform:rotate(0); }.property-body { padding:0 8px 9px; }.metric-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin:0 4px 7px; }.metric-field { display:grid; grid-template-columns:15px 1fr auto; align-items:center; height:28px; padding:0 7px; border-radius:4px; background:#383838; }.metric-field span { color:#999; font-size:10px; }.metric-field b { overflow:hidden; color:#e8e8e8; font-size:11px; font-weight:400; text-overflow:ellipsis; white-space:nowrap; }.metric-field small { color:#888; font-size:9px; }.property-row { display:grid; grid-template-columns:88px minmax(0,1fr); align-items:center; min-height:28px; padding:0 7px; border-radius:4px; font-size:11px; }.property-row:hover { background:#383838; }.property-label { overflow:hidden; color:#b8b8b8; text-overflow:ellipsis; white-space:nowrap; }.property-value { overflow:hidden; color:#ededed; text-align:left; text-overflow:ellipsis; white-space:nowrap; }.property-value.colour { display:grid; grid-template-columns:16px minmax(0,1fr) auto auto; gap:6px; align-items:center; }.colour-swatch { display:block; width:16px; height:16px; border:1px solid rgba(255,255,255,.18); border-radius:3px; background-image:linear-gradient(45deg,#555 25%,transparent 25%),linear-gradient(-45deg,#555 25%,transparent 25%),linear-gradient(45deg,transparent 75%,#555 75%),linear-gradient(-45deg,transparent 75%,#555 75%); }.property-value small { color:#999; font-size:9px; }.property-value em { overflow:hidden; color:#999; font-size:9px; font-style:normal; text-overflow:ellipsis; white-space:nowrap; }
+    #detail-tooltip { position:fixed; z-index:2147483647; display:none; max-width:min(300px, calc(100vw - 24px)); padding:7px 9px; pointer-events:none; border:1px solid #4c4c4c; border-radius:4px; background:#1e1e1e; box-shadow:0 6px 18px rgba(0,0,0,.3); color:#f0f0f0; font:10px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace; white-space:pre-line; overflow-wrap:anywhere; }
   `;
 
   function createUI() {
@@ -275,20 +272,70 @@
     }
     return formatted;
   }
-  function readableName(prop) { return prop.replace(/^font-/, "").replace(/^background-/, "bg-").replace(/-([a-z])/g, (_, letter) => letter.toUpperCase()); }
-  function row(prop, computed, element) {
-    const value = computed.getPropertyValue(prop).trim();
-    const displayedValue = prop === "font-family" ? primaryFontFamily(value) : clean(value);
-    const colour = ["color", "background-color", "text-decoration-color"].includes(prop) && colourDetails(value);
-    const name = readableName(prop);
-    const hasColour = colourKeys(value).size > 0;
-    const detail = prop === "font-family"
-      ? displayedValue
-      : hasColour ? detailFor(value, tokenInfoFor(element, prop, value, computed)) : formatColourValue(value);
-    const renderedValue = colour
-      ? `<i class="chip" style="background:${value}"></i>${colour.hex} <span class="alpha">${colour.alpha.replace("α ", "")}</span>`
-      : escapeMarkup(formatColourValue(displayedValue));
-    return `<div class="row"><span class="key" data-detail="${escapeMarkup(name)}">${escapeMarkup(name)}</span><span class="value${colour ? " colour" : ""}" data-detail="${escapeMarkup(detail)}">${renderedValue}</span></div>`;
+  function propertyRow(label, value, detail = value) {
+    return `<div class="property-row"><span class="property-label" data-detail="${escapeMarkup(label)}">${escapeMarkup(label)}</span><span class="property-value" data-detail="${escapeMarkup(detail)}">${escapeMarkup(value)}</span></div>`;
+  }
+  function colourPropertyRow(label, value, element, prop, suffix = "") {
+    const colour = colourDetails(value);
+    if (!colour) return "";
+    const detail = detailFor(value, tokenInfoFor(element, prop, value, getComputedStyle(element)));
+    return `<div class="property-row"><span class="property-label" data-detail="${escapeMarkup(label)}">${escapeMarkup(label)}</span><span class="property-value colour" data-detail="${escapeMarkup(detail)}"><i class="colour-swatch" style="background:${escapeMarkup(value)}"></i><span>${colour.hex}</span><small>${colour.alpha.replace("α ", "")}</small>${suffix ? `<em>${escapeMarkup(suffix)}</em>` : ""}</span></div>`;
+  }
+  function propertySection(title, contents) {
+    const body = contents.filter(Boolean).join("");
+    return body ? `<details class="property-section" open><summary><span>${escapeMarkup(title)}</span></summary><div class="property-body">${body}</div></details>` : "";
+  }
+  function metricField(label, value) {
+    return `<div class="metric-field"><span>${escapeMarkup(label)}</span><b>${escapeMarkup(String(value))}</b><small>px</small></div>`;
+  }
+  function rounded(value) {
+    const number = Number.parseFloat(value);
+    if (!Number.isFinite(number)) return value;
+    return String(Math.round(number * 100) / 100);
+  }
+  function lengthValue(value) {
+    if (!value || value === "normal") return "—";
+    if (/^-?[\d.]+px$/.test(value)) return `${rounded(value)} px`;
+    return value;
+  }
+  function compactBox(values) {
+    const formatted = values.map(lengthValue);
+    const [top, right, bottom, left] = formatted;
+    if (formatted.every((value) => value === top)) return top;
+    if (top === bottom && right === left) return `${top} · ${right}`;
+    return formatted.join(" · ");
+  }
+  function hasPositiveLength(value) {
+    return (Number.parseFloat(value) || 0) > 0;
+  }
+  function visibleColour(value) {
+    const colour = colourDetails(value);
+    return colour && colour.alpha !== "α 0%";
+  }
+  function fontWeightLabel(value) {
+    const weight = Number.parseInt(value, 10);
+    const names = { 100: "Thin", 200: "Extra Light", 300: "Light", 400: "Regular", 500: "Medium", 600: "Semi Bold", 700: "Bold", 800: "Extra Bold", 900: "Black" };
+    return names[weight] ? `${names[weight]} · ${weight}` : value;
+  }
+  function textElement(element) {
+    if ([...element.childNodes].some((node) => node.nodeType === Node.TEXT_NODE && node.nodeValue.trim())) return true;
+    return ["A", "BUTTON", "LABEL", "P", "SPAN", "STRONG", "EM", "B", "I", "H1", "H2", "H3", "H4", "H5", "H6", "LI", "TD", "TH"].includes(element.tagName)
+      && sampleText(element) !== "无文字内容";
+  }
+  function borderRows(element, computed) {
+    const edges = [
+      ["Top", "border-top", computed.borderTopWidth, computed.borderTopStyle, computed.borderTopColor],
+      ["Right", "border-right", computed.borderRightWidth, computed.borderRightStyle, computed.borderRightColor],
+      ["Bottom", "border-bottom", computed.borderBottomWidth, computed.borderBottomStyle, computed.borderBottomColor],
+      ["Left", "border-left", computed.borderLeftWidth, computed.borderLeftStyle, computed.borderLeftColor]
+    ].filter(([, , width, style]) => hasPositiveLength(width) && style !== "none");
+    if (!edges.length) return [];
+    const signature = (edge) => edge.slice(2).join("|");
+    if (edges.length === 4 && edges.every((edge) => signature(edge) === signature(edges[0]))) {
+      const [, prop, width, style, colour] = edges[0];
+      return [colourPropertyRow("Stroke", colour, element, prop, `${lengthValue(width)} · ${style}`)];
+    }
+    return edges.map(([label, prop, width, style, colour]) => colourPropertyRow(label, colour, element, prop, `${lengthValue(width)} · ${style}`));
   }
   function selectorFor(element) {
     const tag = escapeMarkup(element.tagName.toLowerCase());
@@ -545,6 +592,7 @@
     }, 3000);
   }
   function sampleText(element) {
+    if (typeof element.value === "string" && element.value.trim()) return element.value.trim().replace(/\s+/g, " ").slice(0, 42);
     const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
     let sample = "";
     let visited = 0;
@@ -557,18 +605,79 @@
     return sample.trim().replace(/\s+/g, " ").slice(0, 42) || "无文字内容";
   }
   function contentFor(element, rect, computed, childGap) {
-    const sets = [["排版 / TYPE", typographyProps], ["外观 / LOOK", appearanceProps]];
-    const groups = sets.map(([title, props]) => `<div class="group"><div class="group-title">${title}</div>${props.map((prop) => row(prop, computed, element)).join("")}</div>`).join("");
-    const text = escapeMarkup(sampleText(element));
-    const insets = [["↑ 上", computed.paddingTop], ["→ 右", computed.paddingRight], ["↓ 下", computed.paddingBottom], ["← 左", computed.paddingLeft]];
-    const insetGrid = insets.map(([direction, value]) => `<div class="inset"><span>${direction}</span><b>${escapeMarkup(value)}</b></div>`).join("");
-    const boxHint = childGap ? `content → 边缘 · gap ${Math.round(childGap.value)}px` : "content → 边缘";
-    const state = locked ? "LOCKED · CLICKED" : "LIVE · HOVER";
+    const isText = textElement(element);
+    const text = sampleText(element);
+    const dimensions = `<div class="metric-grid">${metricField("W", rounded(rect.width))}${metricField("H", rounded(rect.height))}</div>`;
+    const layoutRows = [];
+    if (computed.display === "flex" || computed.display === "inline-flex") {
+      const direction = computed.flexDirection.startsWith("column") ? "Vertical" : "Horizontal";
+      layoutRows.push(propertyRow("Layout", `Auto · ${direction}`, `${computed.display} · ${computed.flexDirection}`));
+      if (!["normal", "stretch"].includes(computed.alignItems)) layoutRows.push(propertyRow("Align", computed.alignItems));
+      if (!["normal", "flex-start"].includes(computed.justifyContent)) layoutRows.push(propertyRow("Distribute", computed.justifyContent));
+    } else if (computed.display === "grid" || computed.display === "inline-grid") {
+      layoutRows.push(propertyRow("Layout", "Grid"));
+    } else if (!["block", "inline"].includes(computed.display)) {
+      layoutRows.push(propertyRow("Display", computed.display));
+    }
+    if (computed.position !== "static") layoutRows.push(propertyRow("Position", computed.position));
+    const gapValues = [computed.rowGap, computed.columnGap];
+    if (childGap || gapValues.some(hasPositiveLength)) {
+      layoutRows.push(propertyRow("Gap", childGap ? `${rounded(childGap.value)} px` : compactBox([...gapValues, ...gapValues])));
+    }
+    const paddings = [computed.paddingTop, computed.paddingRight, computed.paddingBottom, computed.paddingLeft];
+    if (paddings.some(hasPositiveLength)) layoutRows.push(propertyRow("Padding", compactBox(paddings), `Top · Right · Bottom · Left\n${paddings.map(lengthValue).join(" · ")}`));
+    const radii = [computed.borderTopLeftRadius, computed.borderTopRightRadius, computed.borderBottomRightRadius, computed.borderBottomLeftRadius];
+    if (radii.some(hasPositiveLength)) layoutRows.push(propertyRow("Radius", compactBox(radii), `Top left · Top right · Bottom right · Bottom left\n${radii.map(lengthValue).join(" · ")}`));
+    if ([computed.overflowX, computed.overflowY].some((value) => value === "hidden" || value === "clip")) {
+      layoutRows.push(propertyRow("Clip content", "On", `${computed.overflowX} · ${computed.overflowY}`));
+    }
+
+    const typographyRows = [];
+    if (isText) {
+      typographyRows.push(propertyRow("Font", primaryFontFamily(computed.fontFamily)));
+      const style = computed.fontStyle === "normal" ? fontWeightLabel(computed.fontWeight) : `${fontWeightLabel(computed.fontWeight)} · ${computed.fontStyle}`;
+      typographyRows.push(propertyRow("Style", style));
+      typographyRows.push(propertyRow("Size", lengthValue(computed.fontSize)));
+      typographyRows.push(propertyRow("Line height", computed.lineHeight === "normal" ? "Auto" : lengthValue(computed.lineHeight)));
+      if (computed.letterSpacing !== "normal" && !/^0(?:px)?$/.test(computed.letterSpacing)) typographyRows.push(propertyRow("Letter spacing", lengthValue(computed.letterSpacing)));
+      if (!["left", "start"].includes(computed.textAlign)) typographyRows.push(propertyRow("Align", computed.textAlign));
+      if (computed.textDecorationLine !== "none") typographyRows.push(propertyRow("Decoration", computed.textDecorationLine));
+      if (computed.textTransform !== "none") typographyRows.push(propertyRow("Case", computed.textTransform));
+    }
+
+    const fillRows = [];
+    if (isText && visibleColour(computed.color)) fillRows.push(colourPropertyRow("Text", computed.color, element, "color"));
+    if (visibleColour(computed.backgroundColor)) fillRows.push(colourPropertyRow("Background", computed.backgroundColor, element, "background-color"));
+    if (computed.backgroundImage !== "none") {
+      const kind = computed.backgroundImage.includes("gradient(") ? "Gradient" : "Image";
+      fillRows.push(propertyRow("Image", kind, computed.backgroundImage));
+    }
+
+    const strokeRows = borderRows(element, computed);
+    if (hasPositiveLength(computed.outlineWidth) && computed.outlineStyle !== "none") {
+      strokeRows.push(colourPropertyRow("Outline", computed.outlineColor, element, "outline", `${lengthValue(computed.outlineWidth)} · ${computed.outlineStyle}`));
+    }
+
+    const effectRows = [];
+    if (computed.boxShadow !== "none") effectRows.push(propertyRow("Shadow", "Drop shadow", computed.boxShadow));
+    if (isText && computed.textShadow !== "none") effectRows.push(propertyRow("Text shadow", "Enabled", computed.textShadow));
+    if (computed.filter !== "none") effectRows.push(propertyRow("Filter", computed.filter));
+    if (computed.mixBlendMode !== "normal") effectRows.push(propertyRow("Blend", computed.mixBlendMode));
+    if (Number.parseFloat(computed.opacity) < 1) effectRows.push(propertyRow("Opacity", `${Math.round(Number.parseFloat(computed.opacity) * 100)}%`));
+
+    const sections = [
+      propertySection("Layout", [dimensions, ...layoutRows]),
+      propertySection("Typography", typographyRows),
+      propertySection("Fill", fillRows),
+      propertySection("Stroke", strokeRows),
+      propertySection("Effects", effectRows)
+    ].join("");
+    const state = locked ? "Selected" : "Inspecting";
     const resourceAction = selectedResource
       ? `<button class="resource-copy" type="button" data-copy-resource${selectedResource.state === "loading" ? " disabled" : ""} title="复制${selectedResource.description}到剪贴板">${selectedResource.state === "loading" ? "PREPARING…" : selectedResource.label}</button>`
       : "";
-    const classes = [...element.classList].slice(0, 8).map(escapeMarkup);
-    return `<div class="panel-head"><div class="kicker"><span>${state}</span><span>${element.tagName.toLowerCase()} · ${element.childElementCount} children</span></div><div class="selector-line"><div class="selector">${selectorFor(element)}</div>${resourceAction}</div><div class="meta">${Math.round(rect.width)} × ${Math.round(rect.height)} px&nbsp;&nbsp; · &nbsp;&nbsp;${classes.length ? `.${classes.join(".")}${element.classList.length > classes.length ? "…" : ""}` : "no class"}</div></div><div class="groups">${groups}</div><div class="box-model"><div class="box-title"><span>内容内距 / TEXT INSETS</span><span class="box-size">${boxHint}</span></div><div class="content-sample"><b>CONTENT&nbsp;&nbsp;</b>${text}</div><div class="inset-grid">${insetGrid}</div><span class="copy-note">⌘ + E 开关检视 · Esc 退出 · 点击重新选中</span></div>`;
+    const textPreview = isText ? `<div class="text-preview" title="${escapeMarkup(text)}">${escapeMarkup(text)}</div>` : "";
+    return `<div class="panel-head"><div class="element-state"><span class="${locked ? "is-locked" : ""}"></span>${state}<b>${element.tagName.toLowerCase()}</b></div><div class="selector-line"><div class="selector">${selectorFor(element)}</div>${resourceAction}</div>${textPreview}</div><div class="property-sections">${sections}</div>`;
   }
   function place(rect, computed, childGap) {
     if (!overlay || !panel || !inspected) return;
@@ -581,7 +690,7 @@
     panel.style.display = "block";
     const gap = 14;
     const edge = 8;
-    const width = panel.offsetWidth || 420;
+    const width = panel.offsetWidth || 320;
     const height = Math.min(panel.offsetHeight || 420, window.innerHeight - edge * 2);
     const clamp = (value, min, max) => Math.max(min, Math.min(value, max));
     const candidates = [

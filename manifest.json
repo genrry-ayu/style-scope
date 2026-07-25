@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Style Scope · 元素样式检视器",
-  "version": "1.6.2",
+  "version": "1.7.0",
   "description": "悬停网页元素，即时查看排版、颜色、边框、阴影、布局与盒模型样式。",
   "permissions": ["storage", "activeTab", "scripting", "clipboardWrite", "sidePanel"],
   "host_permissions": ["<all_urls>"],
