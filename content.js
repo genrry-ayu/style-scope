@@ -352,18 +352,30 @@
     const source = await resource.blob();
     const mime = String(source?.type || "").split(";")[0].toLowerCase();
     if (!mime.startsWith("image/")) throw copyError("format", "无法确认资源的原始图片格式");
-    return { source, mime };
+    const text = mime === "image/svg+xml" ? await source.text() : "";
+    return { source, mime, text };
   }
   function clipboardItemFor(payload) {
     if (!navigator.clipboard?.write || typeof ClipboardItem === "undefined") {
       throw copyError("clipboard", "当前页面未开放图片剪贴板");
     }
-    if (!clipboardSupports(payload.mime)) {
+    const representations = {};
+    if (clipboardSupports(payload.mime)) representations[payload.mime] = payload.source;
+    if (payload.mime === "image/svg+xml" && payload.text) {
+      if (clipboardSupports("text/html")) {
+        representations["text/html"] = new Blob([payload.text], { type: "text/html" });
+      }
+      if (clipboardSupports("text/plain")) {
+        representations["text/plain"] = new Blob([payload.text], { type: "text/plain" });
+      }
+    }
+    const clipboardMime = Object.keys(representations).join(",");
+    if (!clipboardMime) {
       throw copyError("format", `系统剪贴板不支持原始格式 ${payload.mime}`);
     }
     return {
-      item: new ClipboardItem({ [payload.mime]: payload.source }),
-      clipboardMime: payload.mime
+      item: new ClipboardItem(representations),
+      clipboardMime
     };
   }
   function resourceButton() {
