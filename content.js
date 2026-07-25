@@ -297,17 +297,7 @@
         label: "COPY IMAGE",
         description: "图片",
         state: "idle",
-        blob: async () => {
-          try {
-            return await fetchImage(source);
-          } catch (fetchError) {
-            try {
-              return await pngFromImageElement(element);
-            } catch (_) {
-              throw fetchError;
-            }
-          }
-        }
+        blob: () => fetchImage(source)
       } : null;
     }
     if (tag === "svg") {
@@ -328,25 +318,7 @@
     return error;
   }
   function svgBlob(element) {
-    const clone = element.cloneNode(true);
-    const rect = element.getBoundingClientRect();
-    const computed = getComputedStyle(element);
-    clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-    if (!clone.getAttribute("width")) clone.setAttribute("width", String(Math.max(1, Math.round(rect.width))));
-    if (!clone.getAttribute("height")) clone.setAttribute("height", String(Math.max(1, Math.round(rect.height))));
-    clone.setAttribute("style", `${clone.getAttribute("style") || ""};color:${computed.color};fill:${computed.fill};stroke:${computed.stroke}`);
-    const references = [...clone.querySelectorAll("use")]
-      .map((use) => use.getAttribute("href") || use.getAttribute("xlink:href"))
-      .filter((reference) => reference?.startsWith("#"));
-    if (references.length) {
-      const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
-      [...new Set(references)].forEach((reference) => {
-        const source = document.getElementById(reference.slice(1));
-        if (source) defs.append(source.cloneNode(true));
-      });
-      if (defs.childNodes.length) clone.insertBefore(defs, clone.firstChild);
-    }
-    const markup = new XMLSerializer().serializeToString(clone);
+    const markup = new XMLSerializer().serializeToString(element);
     return new Blob([markup], { type: "image/svg+xml" });
   }
   function base64Bytes(base64) {
@@ -397,79 +369,26 @@
   function canvasBlob(canvas) {
     return new Promise((resolve, reject) => canvas.toBlob((blob) => blob ? resolve(blob) : reject(copyError("render", "画布无法导出 PNG")), "image/png"));
   }
-  async function pngFromImageElement(image) {
-    if (!image.complete || !image.naturalWidth || !image.naturalHeight) {
-      try { await image.decode(); }
-      catch (_) { throw copyError("render", "页面中的图片尚未加载完成"); }
-    }
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.max(1, image.naturalWidth);
-    canvas.height = Math.max(1, image.naturalHeight);
-    const context = canvas.getContext("2d");
-    if (!context) throw copyError("render", "无法创建图片画布");
-    try {
-      context.drawImage(image, 0, 0, canvas.width, canvas.height);
-      return await canvasBlob(canvas);
-    } catch (_) {
-      throw copyError("render", "页面限制了图片像素读取");
-    }
-  }
   function clipboardSupports(type) {
     try { return !ClipboardItem.supports || ClipboardItem.supports(type); }
     catch (_) { return false; }
   }
-  async function pngFromImageBlob(blob) {
-    let bitmap;
-    try {
-      bitmap = await createImageBitmap(blob);
-      const canvas = document.createElement("canvas");
-      canvas.width = Math.max(1, bitmap.width);
-      canvas.height = Math.max(1, bitmap.height);
-      const context = canvas.getContext("2d");
-      if (!context) throw copyError("format", "无法创建图片画布");
-      context.drawImage(bitmap, 0, 0);
-      return await canvasBlob(canvas);
-    } catch (bitmapError) {
-      const objectUrl = URL.createObjectURL(blob);
-      try {
-        const image = new Image();
-        image.src = objectUrl;
-        await image.decode();
-        return await pngFromImageElement(image);
-      } catch (_) {
-        throw bitmapError;
-      } finally {
-        URL.revokeObjectURL(objectUrl);
-      }
-    } finally {
-      bitmap?.close?.();
-    }
-  }
   async function prepareClipboardPayload(resource) {
     const source = await resource.blob();
-    if (!source?.type?.startsWith("image/")) throw copyError("format", "无法确认资源的图片格式");
-    if (resource.kind === "svg" || source.type === "image/svg+xml") {
-      const svg = source.type === "image/svg+xml" ? source : new Blob([source], { type: "image/svg+xml" });
-      let png = null;
-      try { png = await pngFromImageBlob(svg); }
-      catch (_) { /* SVG 原件仍可复制；PNG 只是兼容表示。 */ }
-      return { svg, png };
-    }
-    const png = source.type === "image/png" ? source : await pngFromImageBlob(source);
-    return { png };
+    const mime = String(source?.type || "").split(";")[0].toLowerCase();
+    if (!mime.startsWith("image/")) throw copyError("format", "无法确认资源的原始图片格式");
+    return { source, mime };
   }
   function clipboardItemFor(payload) {
     if (!navigator.clipboard?.write || typeof ClipboardItem === "undefined") {
       throw copyError("clipboard", "当前页面未开放图片剪贴板");
     }
-    const representations = {};
-    if (payload.svg && clipboardSupports("image/svg+xml")) representations["image/svg+xml"] = payload.svg;
-    if (payload.png && clipboardSupports("image/png")) representations["image/png"] = payload.png;
-    const clipboardMime = representations["image/svg+xml"] ? "image/svg+xml" : representations["image/png"] ? "image/png" : "";
-    if (!clipboardMime) throw copyError("format", "系统剪贴板不支持此图片格式");
+    if (!clipboardSupports(payload.mime)) {
+      throw copyError("format", `系统剪贴板不支持原始格式 ${payload.mime}`);
+    }
     return {
-      item: new ClipboardItem(representations),
-      clipboardMime
+      item: new ClipboardItem({ [payload.mime]: payload.source }),
+      clipboardMime: payload.mime
     };
   }
   function resourceButton() {
@@ -544,7 +463,7 @@
       button.dataset.copyResult = "success";
       button.dataset.copyMime = clipboardMime;
       delete button.dataset.copyError;
-      button.textContent = resource.payload.svg ? "COPIED SVG" : "COPIED IMAGE";
+      button.textContent = resource.payload.mime === "image/svg+xml" ? "COPIED SVG" : "COPIED IMAGE";
       button.classList.add("is-copied");
     } catch (error) {
       button.dataset.copyResult = "failed";
