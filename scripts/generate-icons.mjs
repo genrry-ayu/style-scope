@@ -5,9 +5,10 @@ import { fileURLToPath } from "node:url";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const output = resolve(root, "icons");
-const blue = [13, 153, 255];
-const ink = [44, 44, 44];
-const white = [242, 242, 242];
+const gold = [241, 184, 74];
+const ink = [23, 24, 22];
+const rim = [59, 60, 54];
+const cream = [243, 239, 231];
 
 function crc32(bytes) {
   let crc = 0xffffffff;
@@ -84,12 +85,27 @@ function render(size) {
       blend(x, y, colour, Math.max(0, Math.min(1, radius + .7 - distance)));
     }
   };
+  const fillDiamond = (centerX, centerY, radius, colour) => {
+    const cx = centerX * scale;
+    const cy = centerY * scale;
+    const r = radius * scale;
+    for (let y = Math.floor(cy - r - 1); y <= Math.ceil(cy + r + 1); y += 1) for (let x = Math.floor(cx - r - 1); x <= Math.ceil(cx + r + 1); x += 1) {
+      const distance = Math.abs(x + .5 - cx) + Math.abs(y + .5 - cy);
+      blend(x, y, colour, Math.max(0, Math.min(1, r + .7 - distance)));
+    }
+  };
   fillRounded(0, 0, 128, 128, 28, ink);
-  line(28, 48, 28, 32, 8, blue); line(28, 28, 48, 28, 8, blue);
-  line(80, 28, 100, 28, 8, blue); line(100, 32, 100, 48, 8, blue);
-  line(100, 80, 100, 96, 8, blue); line(100, 100, 80, 100, 8, blue);
-  line(48, 100, 32, 100, 8, blue); line(28, 96, 28, 80, 8, blue);
-  fillRounded(52, 52, 24, 24, 5, white);
+  line(10, 28, 28, 10, 2, rim); line(100, 10, 118, 28, 2, rim);
+  line(118, 100, 100, 118, 2, rim); line(28, 118, 10, 100, 2, rim);
+  const diamond = (radius, width, colour) => {
+    line(64, 64 - radius, 64 + radius, 64, width, colour);
+    line(64 + radius, 64, 64, 64 + radius, width, colour);
+    line(64, 64 + radius, 64 - radius, 64, width, colour);
+    line(64 - radius, 64, 64, 64 - radius, width, colour);
+  };
+  diamond(49, 5, gold);
+  diamond(29, 3, gold);
+  fillDiamond(64, 64, 9, cream);
   return px;
 }
 

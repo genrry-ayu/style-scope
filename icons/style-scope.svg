@@ -1,11 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" role="img" aria-labelledby="title">
   <title>Style Scope</title>
-  <rect width="128" height="128" rx="28" fill="#2c2c2c"/>
-  <g fill="none" stroke="#0d99ff" stroke-linecap="round" stroke-width="8">
-    <path d="M26 48V30c0-2.2 1.8-4 4-4h18"/>
-    <path d="M80 26h18c2.2 0 4 1.8 4 4v18"/>
-    <path d="M102 80v18c0 2.2-1.8 4-4 4H80"/>
-    <path d="M48 102H30c-2.2 0-4-1.8-4-4V80"/>
+  <rect width="128" height="128" rx="27" fill="#171816"/>
+  <rect x="3" y="3" width="122" height="122" rx="24" fill="none" stroke="#3b3c36" stroke-width="2"/>
+  <g fill="none" stroke="#f1b84a" stroke-linejoin="round">
+    <path d="M64 15 113 64 64 113 15 64Z" stroke-width="5"/>
+    <path d="m64 35 29 29-29 29-29-29Z" stroke-width="3"/>
   </g>
-  <rect x="52" y="52" width="24" height="24" rx="5" fill="#f2f2f2"/>
+  <path d="m64 55 9 9-9 9-9-9Z" fill="#f3efe7"/>
 </svg>
