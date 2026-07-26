@@ -3,7 +3,8 @@
   globalThis.__styleScopeLoaded = true;
 
   const ROOT_ID = "__style_scope_root__";
-  const DEFAULTS = { enabled: false, panelMode: "overlay" };
+  const DEFAULT_SHORTCUT = { code: "KeyE", key: "E", metaKey: true, ctrlKey: false, altKey: false, shiftKey: false };
+  const DEFAULTS = { enabled: false, panelMode: "overlay", shortcut: DEFAULT_SHORTCUT };
   let settings = { ...DEFAULTS };
   let root;
   let hoverPreview;
@@ -30,7 +31,6 @@
   let pendingTarget = null;
   let previewedTarget = null;
   let cursor = { x: 0, y: 0 };
-  let commandDown = false;
   let cachedStyleRules = [];
   let cachedStyleSheetCount = -1;
   let matchedDeclarationsCache = new WeakMap();
@@ -795,8 +795,25 @@
     }
   }
   function isActive() { return settings.enabled; }
-  function isCommandKey(event) { return event.code === "MetaLeft" || event.code === "MetaRight"; }
-  function isCommandE(event) { return commandDown && event.metaKey && event.code === "KeyE"; }
+  function normaliseShortcut(shortcut) {
+    if (!shortcut?.code) return { ...DEFAULT_SHORTCUT };
+    return {
+      code: shortcut.code,
+      key: shortcut.key || shortcut.code,
+      metaKey: Boolean(shortcut.metaKey),
+      ctrlKey: Boolean(shortcut.ctrlKey),
+      altKey: Boolean(shortcut.altKey),
+      shiftKey: Boolean(shortcut.shiftKey)
+    };
+  }
+  function matchesShortcut(event) {
+    const shortcut = normaliseShortcut(settings.shortcut);
+    return event.code === shortcut.code
+      && event.metaKey === shortcut.metaKey
+      && event.ctrlKey === shortcut.ctrlKey
+      && event.altKey === shortcut.altKey
+      && event.shiftKey === shortcut.shiftKey;
+  }
   function setInspectionEnabled(enabled) {
     apply({ ...settings, enabled });
     chrome.storage.local.set({ enabled });
@@ -1000,30 +1017,22 @@
   document.addEventListener("mousemove", onMove, true);
   document.addEventListener("click", onClick, true);
   document.addEventListener("keydown", (event) => {
-    if (isCommandKey(event)) {
-      commandDown = true;
-      return;
-    }
     if (event.code === "Escape" && event.key === "Escape" && isActive()) {
       event.preventDefault();
       event.stopImmediatePropagation();
       setInspectionEnabled(false);
       return;
     }
-    if (!isCommandE(event) || event.repeat) return;
+    if (!matchesShortcut(event) || event.repeat) return;
     event.preventDefault();
     event.stopImmediatePropagation();
     setInspectionEnabled(!settings.enabled);
   }, true);
-  document.addEventListener("keyup", (event) => {
-    if (isCommandKey(event)) commandDown = false;
-  }, true);
-  window.addEventListener("blur", () => { commandDown = false; });
   window.addEventListener("scroll", () => { schedulePlacement(); hideHoverPreview(); }, true);
   window.addEventListener("resize", () => { schedulePlacement(); hideHoverPreview(); });
   function apply(next) {
     const previousMode = settings.panelMode;
-    settings = { ...DEFAULTS, ...next };
+    settings = { ...DEFAULTS, ...next, shortcut: normaliseShortcut(next.shortcut) };
     if (!isActive()) { hide(); return; }
     createUI();
     if (inspected && previousMode !== settings.panelMode) renderInspection();

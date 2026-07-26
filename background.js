@@ -1,4 +1,5 @@
-const DEFAULTS = { enabled: false, panelMode: "overlay" };
+const DEFAULT_SHORTCUT = { code: "KeyE", key: "E", metaKey: true, ctrlKey: false, altKey: false, shiftKey: false };
+const DEFAULTS = { enabled: false, panelMode: "overlay", shortcut: DEFAULT_SHORTCUT };
 const inspectionByTab = new Map();
 
 function inspectionFrameKey(tabId) {
